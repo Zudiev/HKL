@@ -9,36 +9,19 @@ const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "—";
 const pctOf   = (val) => Math.round((val / MAX_VAL) * 100);
 
 // ─── ENCODE / DECODE SHARE CODE ──────────────────────────────────────────────
-//
-// v2 format (new, compact):
-//   Prefix "v2:" + base64 of a fixed-length string.
-//   All question IDs across all categories are sorted numerically.
-//   Each position = one character: '0'–'4' for answered, '-' for skipped.
-//   Example for 169 questions fully answered: ~230 chars total.
-//
-// v1 format (old, JSON):
-//   Plain base64 of JSON string {"1":2,"2":3,...}
-//   Still decoded correctly so old codes keep working.
-
-// Build sorted list of all question IDs once at module level.
 const ALL_IDS = CATEGORIES.flatMap((c) => c.questions.map((q) => q.id))
     .sort((a, b) => a - b);
 
 function encodeAnswers(answers) {
-    // Build a compact string — one char per question in ID order
     const compact = ALL_IDS.map((id) => {
         const val = answers[id];
         return val !== undefined ? String(val) : "-";
     }).join("");
-
-    // base64-encode the compact string (ASCII only, btoa is fine)
     return "v2:" + btoa(compact);
 }
 
 function decodeAnswers(code) {
     const trimmed = code.trim();
-
-    // ── v2 format ──
     if (trimmed.startsWith("v2:")) {
         try {
             const compact = atob(trimmed.slice(3));
@@ -55,15 +38,12 @@ function decodeAnswers(code) {
             return null;
         }
     }
-
-    // ── v1 format (old JSON base64) — kept for backward compatibility ──
     try {
         const binary  = atob(trimmed);
         const bytes   = Uint8Array.from(binary, (c) => c.charCodeAt(0));
         const payload = new TextDecoder().decode(bytes);
         const parsed  = JSON.parse(payload);
         if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
-        // v1 stored string keys — normalise to number keys
         const result = {};
         for (const [k, v] of Object.entries(parsed)) {
             result[Number(k)] = v;
@@ -80,7 +60,7 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
     const { jsPDF } = await import("jspdf");
 
     const doc    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const PW     = 210; // page width mm
+    const PW     = 210;
     const margin = 16;
     const usable = PW - margin * 2;
     let   y      = margin;
@@ -110,17 +90,14 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
         }
     };
 
-    // column boundary — question text stops here, label sits between here and bar
     const labelColX = PW - margin - 40 - 30;
 
-    // Title
     addText("Quiz Results", 22, true, 15, 15, 15);
     y += 4;
     addText(`${Object.keys(answers).length} questions answered across ${CATEGORIES.length} categories`, 9, false, 120, 120, 120);
     y += 8;
 
     for (const cat of CATEGORIES) {
-        // Category heading
         if (y > 265) { doc.addPage(); y = margin; }
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, y, PW - margin, y);
@@ -134,14 +111,12 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
             const label = val !== null ? labelOf(val) : "Skipped";
             const pct   = val !== null ? pctOf(val) : 0;
 
-            // question text — constrained to left column only
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(40, 40, 40);
             const lines = doc.splitTextToSize(q.text, labelColX - margin - 4);
             doc.text(lines, margin, y);
 
-            // label — sits in middle column, right-aligned
             doc.setFontSize(8);
             doc.setFont("helvetica", "bold");
             if (val !== null) {
@@ -151,9 +126,7 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
             }
             doc.text(label, labelColX + 24, y, { align: "right" });
 
-            // bar — rightmost column
             addBar(pct);
-
             y += lines.length * 4.2 + 1;
         }
         y += 4;
@@ -171,14 +144,12 @@ export default function PreferenceQuiz() {
     const [exporting,     setExporting]     = useState(false);
     const [activeTooltip, setActiveTooltip] = useState(null);
 
-    // Share code modals
     const [showExportModal, setShowExportModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importInput,     setImportInput]     = useState("");
     const [importError,     setImportError]     = useState("");
     const [copied,          setCopied]          = useState(false);
 
-    // PDF name prompt
     const [showPdfModal, setShowPdfModal] = useState(false);
     const [pdfName,      setPdfName]      = useState("");
 
@@ -188,7 +159,6 @@ export default function PreferenceQuiz() {
     const isLastCategory     = catIndex === CATEGORIES.length - 1;
     const isFirstCategory    = catIndex === 0;
 
-    // Questions are now always skippable — count only answered (not required)
     const answeredInCurrent = useMemo(
         () => currentCategory.questions.filter((q) => q.id in answers).length,
         [answers, currentCategory]
@@ -225,7 +195,6 @@ export default function PreferenceQuiz() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // ── Export share code ──
     const shareCode = encodeAnswers(answers);
 
     const handleCopy = () => {
@@ -235,7 +204,6 @@ export default function PreferenceQuiz() {
         });
     };
 
-    // ── Import share code ──
     const handleImport = () => {
         const decoded = decodeAnswers(importInput);
         if (!decoded) {
@@ -250,7 +218,6 @@ export default function PreferenceQuiz() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // ── PDF export ──
     const handleExportPDF = () => {
         setPdfName("");
         setShowPdfModal(true);
@@ -265,20 +232,29 @@ export default function PreferenceQuiz() {
         finally { setExporting(false); }
     };
 
-    // ── Shared topbar (rendered in both views) ──
     const Topbar = () => (
         <div className="topbar">
             <button className="import-btn" onClick={() => setShowImportModal(true)}>
                 ↑ Import results
             </button>
-            <a
-                className="kofi-btn"
-                href="https://ko-fi.com/lycheejuice"
-                target="_blank"
-                rel="noreferrer"
-            >
-                ☕ Support me on Ko-fi
-            </a>
+            <div className="topbar-right">
+                <a
+                    className="socials-btn"
+                    href="https://guns.lol/meltingg"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    ✦ Socials
+                </a>
+                <a
+                    className="kofi-btn"
+                    href="https://ko-fi.com/lycheejuice"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    ☕ Support me on Ko-fi
+                </a>
+            </div>
         </div>
     );
 
@@ -290,7 +266,6 @@ export default function PreferenceQuiz() {
             <div className="quiz-wrapper">
                 <Topbar />
 
-                {/* Clickable category breadcrumb */}
                 <nav className="category-strip" aria-label="Progress">
                     {CATEGORIES.map((cat, i) => {
                         const state =
@@ -314,7 +289,6 @@ export default function PreferenceQuiz() {
                     })}
                 </nav>
 
-                {/* Header */}
                 <header className="quiz-header">
                     <p className="quiz-category-label">
                         Category {catIndex + 1} of {CATEGORIES.length}
@@ -323,7 +297,6 @@ export default function PreferenceQuiz() {
                     <p className="quiz-subtitle">{currentCategory.description}</p>
                 </header>
 
-                {/* Progress + scroll to bottom */}
                 <div className="progress-row">
                     <p className="progress-label">
                         {answeredInCurrent} of {currentCategory.questions.length} answered
@@ -337,7 +310,6 @@ export default function PreferenceQuiz() {
                     <div className="progress-fill" style={{ width: `${progressPct}%` }} />
                 </div>
 
-                {/* Questions */}
                 {currentCategory.questions.map((q, i) => (
                     <div
                         key={q.id}
@@ -376,7 +348,6 @@ export default function PreferenceQuiz() {
                     </div>
                 ))}
 
-                {/* Bottom navigation */}
                 <div className="nav-row" ref={bottomRef}>
                     <button
                         className="nav-btn prev-btn"
@@ -395,7 +366,6 @@ export default function PreferenceQuiz() {
                     </button>
                 </div>
 
-                {/* Import modal — available during quiz too */}
                 {showImportModal && (
                     <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
                         <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -454,7 +424,6 @@ export default function PreferenceQuiz() {
                     </div>
                 ))}
 
-                {/* Actions */}
                 <div className="results-actions">
                     <button
                         className="action-btn primary"
@@ -474,7 +443,6 @@ export default function PreferenceQuiz() {
                 </div>
             </div>
 
-            {/* Export modal */}
             {showExportModal && (
                 <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -491,7 +459,6 @@ export default function PreferenceQuiz() {
                 </div>
             )}
 
-            {/* Import modal */}
             {showImportModal && (
                 <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -512,7 +479,6 @@ export default function PreferenceQuiz() {
                 </div>
             )}
 
-            {/* PDF name prompt modal */}
             {showPdfModal && (
                 <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>

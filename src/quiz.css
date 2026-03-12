@@ -81,6 +81,12 @@ body {
   gap: 10px;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .kofi-btn {
   display: inline-flex;
   align-items: center;
@@ -104,6 +110,31 @@ body {
   color: #fff;
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(255,94,91,0.35);
+}
+
+.socials-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid #5b8cff;
+  color: #5b8cff;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.socials-btn:hover {
+  background: #5b8cff;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(91,140,255,0.35);
 }
 
 .import-btn {
@@ -599,7 +630,7 @@ body {
 }
 
 .question-text {
-  margin-bottom: 0; /* override — wrapper handles spacing now */
+  margin-bottom: 0;
 }
 
 .tooltip-anchor {
@@ -673,15 +704,17 @@ body {
   .scale-btn {
     padding: 10px 2px;
   }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-right {
+    flex-wrap: wrap;
+  }
 }
 
 /* ── Print / PDF export ──────────────────────────────────────────────────── */
-/*
-  This block applies when the browser's print dialog is used.
-  For programmatic PDF export (via jsPDF + html2canvas) we target
-  the #results-print-area element directly in JS — these rules
-  keep it looking clean if someone also uses Ctrl+P.
-*/
 @media print {
   :root {
     --bg:      #ffffff;
