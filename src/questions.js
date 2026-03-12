@@ -3,11 +3,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SCALE = [
-  { value: 0, label: "Never"     },
-  { value: 1, label: "Rarely"    },
-  { value: 2, label: "Sometimes" },
-  { value: 3, label: "Often"     },
-  { value: 4, label: "Always"    },
+  { value: 1, label: "Curious about"    },
+  { value: 0, label: "No"     },
+  { value: 2, label: "Maybe" },
+  { value: 3, label: "Okay"     },
+  { value: 4, label: "Like"    },
+  { value: 5, label: "Love"    },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

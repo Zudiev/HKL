@@ -501,10 +501,18 @@ body {
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
-  .scale-label           { display: none; }
+  .scale-label           { display: block; font-size: 0.5rem; }
   .result-bar-track      { width: 90px; }
   .result-question       { font-size: 0.9rem; }
   .category-pip-label    { display: none; }
+
+  .scale-options {
+    gap: 4px;
+  }
+
+  .scale-btn {
+    padding: 10px 2px;
+  }
 }
 
 /* ── Print / PDF export ──────────────────────────────────────────────────── */
