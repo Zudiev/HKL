@@ -429,6 +429,20 @@ body {
   letter-spacing: 0.05em;
 }
 
+.name-input {
+  height: auto;
+  padding: 10px 12px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.privacy-note {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
 /* ── Results page ────────────────────────────────────────────────────────── */
 .results {
   animation: slideIn 0.4s ease both;

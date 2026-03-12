@@ -178,6 +178,10 @@ export default function PreferenceQuiz() {
     const [importError,     setImportError]     = useState("");
     const [copied,          setCopied]          = useState(false);
 
+    // PDF name prompt
+    const [showPdfModal, setShowPdfModal] = useState(false);
+    const [pdfName,      setPdfName]      = useState("");
+
     const bottomRef = useRef(null);
 
     const currentCategory    = CATEGORIES[catIndex];
@@ -247,9 +251,17 @@ export default function PreferenceQuiz() {
     };
 
     // ── PDF export ──
-    const handleExportPDF = async () => {
+    const handleExportPDF = () => {
+        setPdfName("");
+        setShowPdfModal(true);
+    };
+
+    const handleConfirmPDF = async () => {
+        setShowPdfModal(false);
         setExporting(true);
-        try { await exportAsPDF(answers); }
+        const slug     = pdfName.trim().replace(/\s+/g, "-");
+        const filename = slug ? `quiz-result-${slug}.pdf` : "quiz-result.pdf";
+        try { await exportAsPDF(answers, filename); }
         finally { setExporting(false); }
     };
 
@@ -495,6 +507,35 @@ export default function PreferenceQuiz() {
                         <div className="modal-actions">
                             <button className="action-btn primary" onClick={handleImport}>Load results</button>
                             <button className="action-btn" onClick={() => { setShowImportModal(false); setImportError(""); }}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* PDF name prompt modal */}
+            {showPdfModal && (
+                <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="modal-title">Save as PDF</h3>
+                        <p className="modal-sub">
+                            Optionally add a name to identify whose results these are.
+                            The file will be saved as <strong>quiz-result-NAME.pdf</strong>.
+                        </p>
+                        <input
+                            className="code-box name-input"
+                            type="text"
+                            value={pdfName}
+                            onChange={(e) => setPdfName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleConfirmPDF()}
+                            placeholder="e.g. Alice (leave blank to skip)"
+                            autoFocus
+                        />
+                        <p className="privacy-note">🔒 The name is not stored anywhere — it is only used to label the file.</p>
+                        <div className="modal-actions">
+                            <button className="action-btn primary" onClick={handleConfirmPDF}>
+                                ↓ Download PDF
+                            </button>
+                            <button className="action-btn" onClick={() => setShowPdfModal(false)}>Cancel</button>
                         </div>
                     </div>
                 </div>
