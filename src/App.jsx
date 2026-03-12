@@ -9,23 +9,66 @@ const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "—";
 const pctOf   = (val) => Math.round((val / MAX_VAL) * 100);
 
 // ─── ENCODE / DECODE SHARE CODE ──────────────────────────────────────────────
-// Encodes answers map → compact base64 string, decodes back.
+//
+// v2 format (new, compact):
+//   Prefix "v2:" + base64 of a fixed-length string.
+//   All question IDs across all categories are sorted numerically.
+//   Each position = one character: '0'–'4' for answered, '-' for skipped.
+//   Example for 169 questions fully answered: ~230 chars total.
+//
+// v1 format (old, JSON):
+//   Plain base64 of JSON string {"1":2,"2":3,...}
+//   Still decoded correctly so old codes keep working.
+
+// Build sorted list of all question IDs once at module level.
+const ALL_IDS = CATEGORIES.flatMap((c) => c.questions.map((q) => q.id))
+    .sort((a, b) => a - b);
 
 function encodeAnswers(answers) {
-    const payload = JSON.stringify(answers);
-    return btoa(new TextEncoder().encode(payload).reduce(
-        (acc, byte) => acc + String.fromCharCode(byte), ""
-    ));
+    // Build a compact string — one char per question in ID order
+    const compact = ALL_IDS.map((id) => {
+        const val = answers[id];
+        return val !== undefined ? String(val) : "-";
+    }).join("");
+
+    // base64-encode the compact string (ASCII only, btoa is fine)
+    return "v2:" + btoa(compact);
 }
 
 function decodeAnswers(code) {
+    const trimmed = code.trim();
+
+    // ── v2 format ──
+    if (trimmed.startsWith("v2:")) {
+        try {
+            const compact = atob(trimmed.slice(3));
+            const result  = {};
+            for (let i = 0; i < ALL_IDS.length; i++) {
+                const ch = compact[i];
+                if (ch !== undefined && ch !== "-") {
+                    const num = parseInt(ch, 10);
+                    if (!isNaN(num)) result[ALL_IDS[i]] = num;
+                }
+            }
+            return result;
+        } catch {
+            return null;
+        }
+    }
+
+    // ── v1 format (old JSON base64) — kept for backward compatibility ──
     try {
-        const binary  = atob(code.trim());
+        const binary  = atob(trimmed);
         const bytes   = Uint8Array.from(binary, (c) => c.charCodeAt(0));
         const payload = new TextDecoder().decode(bytes);
         const parsed  = JSON.parse(payload);
         if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
-        return parsed;
+        // v1 stored string keys — normalise to number keys
+        const result = {};
+        for (const [k, v] of Object.entries(parsed)) {
+            result[Number(k)] = v;
+        }
+        return result;
     } catch {
         return null;
     }
@@ -218,7 +261,7 @@ export default function PreferenceQuiz() {
             </button>
             <a
                 className="kofi-btn"
-                href="https://ko-fi.com/lycheejuice"
+                href="https://ko-fi.com/YOUR_NAME"
                 target="_blank"
                 rel="noreferrer"
             >
