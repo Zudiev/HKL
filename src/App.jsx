@@ -5,106 +5,170 @@ import { CATEGORIES, SCALE } from "./questions.js";
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 const MAX_VAL = SCALE[SCALE.length - 1].value;
-const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "";
+const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "—";
 const pctOf   = (val) => Math.round((val / MAX_VAL) * 100);
 
-// ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
+// ─── ENCODE / DECODE SHARE CODE ──────────────────────────────────────────────
+// Encodes answers map → compact base64 string, decodes back.
 
-/**
- * Captures the results DOM node and downloads it as a PNG image.
- * Requires: npm install html2canvas
- */
-async function exportAsImage(element, filename = "quiz-results.png") {
-    const html2canvas = (await import("html2canvas")).default;
-    const canvas = await html2canvas(element, {
-        backgroundColor: "#0a0a0c",
-        scale: 2,             // 2× for retina sharpness
-        useCORS: true,
-        logging: false,
-    });
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+function encodeAnswers(answers) {
+    const payload = JSON.stringify(answers);
+    return btoa(new TextEncoder().encode(payload).reduce(
+        (acc, byte) => acc + String.fromCharCode(byte), ""
+    ));
 }
 
-/**
- * Captures the results DOM node and downloads it as a PDF.
- * Requires: npm install html2canvas jspdf
- */
-async function exportAsPDF(element, filename = "quiz-results.pdf") {
-    const html2canvas = (await import("html2canvas")).default;
-    const { jsPDF }   = await import("jspdf");
+function decodeAnswers(code) {
+    try {
+        const binary  = atob(code.trim());
+        const bytes   = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        const payload = new TextDecoder().decode(bytes);
+        const parsed  = JSON.parse(payload);
+        if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
 
-    const canvas = await html2canvas(element, {
-        backgroundColor: "#0a0a0c",
-        scale: 2,
-        useCORS: true,
-        logging: false,
-    });
+// ─── TEXT-BASED PDF ───────────────────────────────────────────────────────────
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "px",
-        format: [canvas.width / 2, canvas.height / 2],
-    });
+async function exportAsPDF(answers, filename = "quiz-results.pdf") {
+    const { jsPDF } = await import("jspdf");
 
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
-    pdf.save(filename);
+    const doc    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const PW     = 210; // page width mm
+    const margin = 16;
+    const usable = PW - margin * 2;
+    let   y      = margin;
+
+    const addText = (text, size, bold = false, color = [20, 20, 20]) => {
+        doc.setFontSize(size);
+        doc.setFont("helvetica", bold ? "bold" : "normal");
+        doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(text, usable);
+        lines.forEach((line) => {
+            if (y > 280) { doc.addPage(); y = margin; }
+            doc.text(line, margin, y);
+            y += size * 0.45;
+        });
+    };
+
+    const addBar = (pct) => {
+        const barW  = 60;
+        const barH  = 2.5;
+        const barX  = PW - margin - barW;
+        if (y > 280) { doc.addPage(); y = margin; }
+        // track
+        doc.setFillColor(220, 220, 220);
+        doc.roundedRect(barX, y - 2.5, barW, barH, 1, 1, "F");
+        // fill
+        if (pct > 0) {
+            doc.setFillColor(201, 169, 110);
+            doc.roundedRect(barX, y - 2.5, barW * (pct / 100), barH, 1, 1, "F");
+        }
+    };
+
+    // Title
+    addText("Quiz Results", 22, true, [15, 15, 15]);
+    y += 4;
+    addText(`${Object.keys(answers).length} questions answered across ${CATEGORIES.length} categories`, 9, false, [120, 120, 120]);
+    y += 8;
+
+    for (const cat of CATEGORIES) {
+        // Category heading
+        if (y > 265) { doc.addPage(); y = margin; }
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, PW - margin, y);
+        y += 5;
+        addText(cat.title.toUpperCase(), 9, true, [100, 100, 180]);
+        y += 3;
+
+        for (const q of cat.questions) {
+            if (y > 278) { doc.addPage(); y = margin; }
+            const val   = answers[q.id] !== undefined ? answers[q.id] : null;
+            const label = val !== null ? labelOf(val) : "Skipped";
+            const pct   = val !== null ? pctOf(val) : 0;
+
+            // question text
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(40, 40, 40);
+            const lines = doc.splitTextToSize(q.text, usable - 75);
+            doc.text(lines, margin, y);
+
+            // label
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            if (val !== null) {
+                doc.setTextColor(150, 110, 50);
+            } else {
+                doc.setTextColor(160, 160, 160);
+            }
+            doc.text(label, PW - margin - 62, y);
+
+            // bar
+            addBar(pct);
+
+            y += lines.length * 4.2 + 1;
+        }
+        y += 4;
+    }
+
+    doc.save(filename);
 }
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
 export default function PreferenceQuiz() {
-    // Which category the user is currently on (0-indexed)
-    const [catIndex,      setCatIndex]     = useState(0);
-    const [answers,       setAnswers]      = useState({});
-    const [submitted,     setSubmitted]    = useState(false);
-    const [exporting,     setExporting]    = useState(null);
-    // Which question id currently has its tooltip open (null = none)
+    const [catIndex,      setCatIndex]      = useState(0);
+    const [answers,       setAnswers]       = useState({});
+    const [submitted,     setSubmitted]     = useState(false);
+    const [exporting,     setExporting]     = useState(false);
     const [activeTooltip, setActiveTooltip] = useState(null);
 
-    const resultsRef = useRef(null);
+    // Share code modals
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importInput,     setImportInput]     = useState("");
+    const [importError,     setImportError]     = useState("");
+    const [copied,          setCopied]          = useState(false);
 
-    const currentCategory = CATEGORIES[catIndex];
-    const isLastCategory  = catIndex === CATEGORIES.length - 1;
+    const bottomRef = useRef(null);
 
-    // How many questions in the current category are answered
+    const currentCategory    = CATEGORIES[catIndex];
+    const isLastCategory     = catIndex === CATEGORIES.length - 1;
+    const isFirstCategory    = catIndex === 0;
+
+    // Questions are now always skippable — count only answered (not required)
     const answeredInCurrent = useMemo(
         () => currentCategory.questions.filter((q) => q.id in answers).length,
         [answers, currentCategory]
     );
-    const allCurrentAnswered = answeredInCurrent === currentCategory.questions.length;
 
     const pick = (qid, val) =>
         setAnswers((prev) => ({ ...prev, [qid]: val }));
 
-    // Advance to next category or show results
+    const goToCategory = (index) => {
+        setCatIndex(index);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     const handleNext = () => {
-        if (!allCurrentAnswered) return;
         if (isLastCategory) {
             setSubmitted(true);
-        } else {
-            setCatIndex((i) => i + 1);
             window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+            goToCategory(catIndex + 1);
         }
     };
 
-    // Export handlers
-    const handleExportImage = async () => {
-        if (!resultsRef.current) return;
-        setExporting("image");
-        try { await exportAsImage(resultsRef.current); }
-        finally { setExporting(null); }
+    const handlePrev = () => {
+        if (!isFirstCategory) goToCategory(catIndex - 1);
     };
 
-    const handleExportPDF = async () => {
-        if (!resultsRef.current) return;
-        setExporting("pdf");
-        try { await exportAsPDF(resultsRef.current); }
-        finally { setExporting(null); }
-    };
+    const handleScrollToBottom = () =>
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
     const handleRetake = () => {
         setAnswers({});
@@ -113,37 +177,79 @@ export default function PreferenceQuiz() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // ── QUIZ VIEW ──────────────────────────────────────────────────────────────
+    // ── Export share code ──
+    const shareCode = encodeAnswers(answers);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(shareCode).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    // ── Import share code ──
+    const handleImport = () => {
+        const decoded = decodeAnswers(importInput);
+        if (!decoded) {
+            setImportError("Invalid code — please check and try again.");
+            return;
+        }
+        setAnswers(decoded);
+        setSubmitted(true);
+        setShowImportModal(false);
+        setImportInput("");
+        setImportError("");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    // ── PDF export ──
+    const handleExportPDF = async () => {
+        setExporting(true);
+        try { await exportAsPDF(answers); }
+        finally { setExporting(false); }
+    };
+
+    // ── Shared topbar (rendered in both views) ──
+    const Topbar = () => (
+        <div className="topbar">
+            <button className="import-btn" onClick={() => setShowImportModal(true)}>
+                ↑ Import results
+            </button>
+            <a
+                className="kofi-btn"
+                href="https://ko-fi.com/YOUR_NAME"
+                target="_blank"
+                rel="noreferrer"
+            >
+                ☕ Support me on Ko-fi
+            </a>
+        </div>
+    );
+
+    // ── QUIZ VIEW ─────────────────────────────────────────────────────────────
     if (!submitted) {
-        const progressPct = (answeredInCurrent / currentCategory.questions.length) * 100;
+        const progressPct = answeredInCurrent / currentCategory.questions.length * 100;
 
         return (
             <div className="quiz-wrapper">
+                <Topbar />
 
-                {/* Top bar — Ko-fi button sits here, replace the href with your page */}
-                <div className="topbar">
-                    <a
-                        className="kofi-btn"
-                        href="https://ko-fi.com/lycheejuice"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        ☕ Support me on Ko-fi
-                    </a>
-                </div>
-
-                {/* Category breadcrumb strip */}
+                {/* Clickable category breadcrumb */}
                 <nav className="category-strip" aria-label="Progress">
                     {CATEGORIES.map((cat, i) => {
                         const state =
-                            i < catIndex  ? "done"   :
+                            i < catIndex   ? "done"   :
                                 i === catIndex ? "active" : "";
                         return (
                             <span key={cat.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className={`category-pip ${state}`}>
+                <button
+                    className={`category-pip ${state}`}
+                    onClick={() => goToCategory(i)}
+                    title={cat.title}
+                >
                   <span className="pip-dot" />
                   <span className="category-pip-label">{cat.title}</span>
-                </span>
+                </button>
                                 {i < CATEGORIES.length - 1 && (
                                     <span className="pip-arrow">›</span>
                                 )}
@@ -161,10 +267,16 @@ export default function PreferenceQuiz() {
                     <p className="quiz-subtitle">{currentCategory.description}</p>
                 </header>
 
-                {/* Progress */}
-                <p className="progress-label">
-                    {answeredInCurrent} of {currentCategory.questions.length} answered
-                </p>
+                {/* Progress + scroll to bottom */}
+                <div className="progress-row">
+                    <p className="progress-label">
+                        {answeredInCurrent} of {currentCategory.questions.length} answered
+                        <span className="skip-hint"> — questions are optional</span>
+                    </p>
+                    <button className="scroll-bottom-btn" onClick={handleScrollToBottom}>
+                        ↓ Jump to bottom
+                    </button>
+                </div>
                 <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${progressPct}%` }} />
                 </div>
@@ -208,94 +320,141 @@ export default function PreferenceQuiz() {
                     </div>
                 ))}
 
-                {/* Navigation */}
-                <div className="nav-row">
-                    <p className="answered-count">
-                        <span>{answeredInCurrent}</span> / {currentCategory.questions.length} completed
-                    </p>
+                {/* Bottom navigation */}
+                <div className="nav-row" ref={bottomRef}>
                     <button
-                        className={`next-btn${allCurrentAnswered ? " active" : ""}`}
-                        onClick={handleNext}
+                        className="nav-btn prev-btn"
+                        onClick={handlePrev}
+                        disabled={isFirstCategory}
                     >
-                        {isLastCategory ? "See results →" : `Next: ${CATEGORIES[catIndex + 1].title} →`}
+                        {!isFirstCategory && `← ${CATEGORIES[catIndex - 1].title}`}
+                    </button>
+
+                    <p className="answered-count">
+                        <span>{answeredInCurrent}</span> / {currentCategory.questions.length}
+                    </p>
+
+                    <button className="nav-btn next-btn active" onClick={handleNext}>
+                        {isLastCategory ? "See results →" : `${CATEGORIES[catIndex + 1].title} →`}
                     </button>
                 </div>
 
+                {/* Import modal — available during quiz too */}
+                {showImportModal && (
+                    <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                            <h3 className="modal-title">Import results</h3>
+                            <p className="modal-sub">Paste a share code below to view someone else's results.</p>
+                            <textarea
+                                className="code-box"
+                                value={importInput}
+                                onChange={(e) => { setImportInput(e.target.value); setImportError(""); }}
+                                placeholder="Paste code here…"
+                            />
+                            {importError && <p className="import-error">{importError}</p>}
+                            <div className="modal-actions">
+                                <button className="action-btn primary" onClick={handleImport}>Load results</button>
+                                <button className="action-btn" onClick={() => { setShowImportModal(false); setImportError(""); }}>Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
 
-    // ── RESULTS VIEW ───────────────────────────────────────────────────────────
+    // ── RESULTS VIEW ──────────────────────────────────────────────────────────
     return (
         <div className="quiz-wrapper">
+            <Topbar />
+
             <div className="results">
+                <div className="results-header">
+                    <p className="results-eyebrow">Complete</p>
+                    <h2 className="results-title">Your Results</h2>
+                    <p className="results-sub">
+                        {Object.keys(answers).length} questions answered across {CATEGORIES.length} categories
+                    </p>
+                </div>
 
-                {/* This ref wraps everything that gets captured for export */}
-                <div ref={resultsRef} style={{ padding: "0 0 32px" }}>
-
-                    <div className="results-header">
-                        <p className="results-eyebrow">Complete</p>
-                        <h2 className="results-title">Your Results</h2>
-                        <p className="results-sub">
-                            {Object.keys(answers).length} questions across {CATEGORIES.length} categories
-                        </p>
-                    </div>
-
-                    {CATEGORIES.map((cat) => (
-                        <div key={cat.id} className="result-category">
-                            <p className="result-category-title">{cat.title}</p>
-
-                            {cat.questions.map((q) => {
-                                const val = answers[q.id] ?? 0;
-                                return (
-                                    <div key={q.id} className="result-row">
-                                        <p className="result-question">{q.text}</p>
-                                        <div className="result-bar-track">
-                                            <div
-                                                className="result-bar-fill"
-                                                style={{ width: `${pctOf(val)}%` }}
-                                            />
-                                        </div>
-                                        <span className="result-value">{labelOf(val)}</span>
+                {CATEGORIES.map((cat) => (
+                    <div key={cat.id} className="result-category">
+                        <p className="result-category-title">{cat.title}</p>
+                        {cat.questions.map((q) => {
+                            const val     = answers[q.id];
+                            const skipped = val === undefined;
+                            return (
+                                <div key={q.id} className={`result-row${skipped ? " skipped" : ""}`}>
+                                    <p className="result-question">{q.text}</p>
+                                    <div className="result-bar-track">
+                                        {!skipped && (
+                                            <div className="result-bar-fill" style={{ width: `${pctOf(val)}%` }} />
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ))}
+                                    <span className="result-value">{skipped ? "—" : labelOf(val)}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
 
-                </div>{/* end resultsRef */}
-
-                {/* Export / retake actions */}
+                {/* Actions */}
                 <div className="results-actions">
-
                     <button
                         className="action-btn primary"
                         onClick={handleExportPDF}
-                        disabled={!!exporting}
+                        disabled={exporting}
                     >
-                        {exporting === "pdf"
-                            ? <><span className="spinner" /> Generating…</>
-                            : "↓ Save as PDF"
-                        }
+                        {exporting ? <><span className="spinner" /> Generating…</> : "↓ Save as PDF"}
                     </button>
 
-                    <button
-                        className="action-btn primary"
-                        onClick={handleExportImage}
-                        disabled={!!exporting}
-                    >
-                        {exporting === "image"
-                            ? <><span className="spinner" /> Generating…</>
-                            : "↓ Save as Image"
-                        }
+                    <button className="action-btn primary" onClick={() => setShowExportModal(true)}>
+                        ⬡ Export share code
                     </button>
 
                     <button className="action-btn" onClick={handleRetake}>
                         ← Retake quiz
                     </button>
-
                 </div>
             </div>
+
+            {/* Export modal */}
+            {showExportModal && (
+                <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="modal-title">Share your results</h3>
+                        <p className="modal-sub">Copy this code and send it to someone. They can paste it using the Import button.</p>
+                        <textarea className="code-box" readOnly value={shareCode} />
+                        <div className="modal-actions">
+                            <button className="action-btn primary" onClick={handleCopy}>
+                                {copied ? "✓ Copied!" : "Copy code"}
+                            </button>
+                            <button className="action-btn" onClick={() => setShowExportModal(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Import modal */}
+            {showImportModal && (
+                <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="modal-title">Import results</h3>
+                        <p className="modal-sub">Paste a share code below to view someone else's results.</p>
+                        <textarea
+                            className="code-box"
+                            value={importInput}
+                            onChange={(e) => { setImportInput(e.target.value); setImportError(""); }}
+                            placeholder="Paste code here…"
+                        />
+                        {importError && <p className="import-error">{importError}</p>}
+                        <div className="modal-actions">
+                            <button className="action-btn primary" onClick={handleImport}>Load results</button>
+                            <button className="action-btn" onClick={() => { setShowImportModal(false); setImportError(""); }}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
