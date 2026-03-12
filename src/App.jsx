@@ -261,7 +261,7 @@ export default function PreferenceQuiz() {
             </button>
             <a
                 className="kofi-btn"
-                href="https://ko-fi.com/YOUR_NAME"
+                href="https://ko-fi.com/lycheejuice"
                 target="_blank"
                 rel="noreferrer"
             >
