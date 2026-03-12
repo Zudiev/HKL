@@ -42,10 +42,10 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
     const usable = PW - margin * 2;
     let   y      = margin;
 
-    const addText = (text, size, bold = false, color = [20, 20, 20]) => {
+    const addText = (text, size, bold = false, r = 20, g = 20, b = 20) => {
         doc.setFontSize(size);
         doc.setFont("helvetica", bold ? "bold" : "normal");
-        doc.setTextColor(...color);
+        doc.setTextColor(r, g, b);
         const lines = doc.splitTextToSize(text, usable);
         lines.forEach((line) => {
             if (y > 280) { doc.addPage(); y = margin; }
@@ -55,24 +55,25 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
     };
 
     const addBar = (pct) => {
-        const barW  = 60;
+        const barW  = 40;
         const barH  = 2.5;
         const barX  = PW - margin - barW;
         if (y > 280) { doc.addPage(); y = margin; }
-        // track
         doc.setFillColor(220, 220, 220);
         doc.roundedRect(barX, y - 2.5, barW, barH, 1, 1, "F");
-        // fill
         if (pct > 0) {
             doc.setFillColor(201, 169, 110);
             doc.roundedRect(barX, y - 2.5, barW * (pct / 100), barH, 1, 1, "F");
         }
     };
 
+    // column boundary — question text stops here, label sits between here and bar
+    const labelColX = PW - margin - 40 - 30;
+
     // Title
-    addText("Quiz Results", 22, true, [15, 15, 15]);
+    addText("Quiz Results", 22, true, 15, 15, 15);
     y += 4;
-    addText(`${Object.keys(answers).length} questions answered across ${CATEGORIES.length} categories`, 9, false, [120, 120, 120]);
+    addText(`${Object.keys(answers).length} questions answered across ${CATEGORIES.length} categories`, 9, false, 120, 120, 120);
     y += 8;
 
     for (const cat of CATEGORIES) {
@@ -81,7 +82,7 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, y, PW - margin, y);
         y += 5;
-        addText(cat.title.toUpperCase(), 9, true, [100, 100, 180]);
+        addText(cat.title.toUpperCase(), 9, true, 100, 100, 180);
         y += 3;
 
         for (const q of cat.questions) {
@@ -90,14 +91,14 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
             const label = val !== null ? labelOf(val) : "Skipped";
             const pct   = val !== null ? pctOf(val) : 0;
 
-            // question text
+            // question text — constrained to left column only
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(40, 40, 40);
-            const lines = doc.splitTextToSize(q.text, usable - 75);
+            const lines = doc.splitTextToSize(q.text, labelColX - margin - 4);
             doc.text(lines, margin, y);
 
-            // label
+            // label — sits in middle column, right-aligned
             doc.setFontSize(8);
             doc.setFont("helvetica", "bold");
             if (val !== null) {
@@ -105,9 +106,9 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf") {
             } else {
                 doc.setTextColor(160, 160, 160);
             }
-            doc.text(label, PW - margin - 62, y);
+            doc.text(label, labelColX + 24, y, { align: "right" });
 
-            // bar
+            // bar — rightmost column
             addBar(pct);
 
             y += lines.length * 4.2 + 1;
