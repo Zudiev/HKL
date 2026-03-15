@@ -1021,50 +1021,6 @@ body {
   font-weight: 700;
 }
 
-/* ── 67 Easter egg ──────────────────────────────────────────────────────── */
-.clickable-67 {
-  cursor: pointer;
-  color: var(--accent);
-  transition: color 0.15s;
-}
-
-.clickable-67:hover {
-  color: var(--accent2);
-}
-
-.egg-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: eggIn 0.15s ease both;
-}
-
-.egg-overlay.fading {
-  animation: eggOut 0.7s ease both;
-}
-
-.egg-media {
-  max-width: 100vw;
-  max-height: 100vh;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-@keyframes eggIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes eggOut {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
 /* ── Print / PDF export ──────────────────────────────────────────────────── */
 @media print {
   :root {

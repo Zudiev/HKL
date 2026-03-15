@@ -1,49 +1,21 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef } from "react";
 import "./quiz.css";
 import { CATEGORIES, SCALE } from "./questions.js";
 
-// ─── 67 EASTER EGG ASSETS ───────────────────────────────────────────────────
-import vineBoom from "./assets/sounds/vine-boom.mp3";
-import img1 from "./assets/Shush.jpg";
-import img2 from "./assets/FUCK.png";
-import img3 from "./assets/3E999D72-B7F7-4B68-A696-64161760C5F3.gif";
-import img4 from "./assets/G8lXTj7WQAAGD1H.png";
-import vid1 from "./assets/WKno0Ci.mp4";
 
-const EGG_IMAGES = [
-    { type: "image", src: img1 },
-    { type: "image", src: img2 },
-    { type: "image", src: img3 },
-    { type: "image", src: img4 },
-];
-const EGG_VIDEO = { type: "video", src: vid1 };
-
-function pickEggMedia() {
-    // 80% chance image, 20% chance video
-    if (Math.random() < 0.8 || EGG_IMAGES.length === 0) {
-        return EGG_IMAGES[Math.floor(Math.random() * EGG_IMAGES.length)];
-    }
-    return EGG_VIDEO;
-}
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 const MAX_VAL = Math.max(...SCALE.map((s) => s.value));
-const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "-";
+const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "—";
 const pctOf   = (val) => Math.round((val / MAX_VAL) * 100);
 
 // ─── ENCODE / DECODE SHARE CODE ──────────────────────────────────────────────
 const ALL_IDS = CATEGORIES.flatMap((c) => c.questions.map((q) => q.id))
     .sort((a, b) => a - b);
-const CURRENT_ID_SET = new Set(ALL_IDS);
-
-// full sequential range covering every ID that has ever existed (1-169)
-// this keeps old codes compatible even when questions are removed
-const MAX_EVER_ID = 169;
-const FULL_IDS = Array.from({ length: MAX_EVER_ID }, (_, i) => i + 1);
 
 function encodeAnswers(answers) {
-    const compact = FULL_IDS.map((id) => {
+    const compact = ALL_IDS.map((id) => {
         const val = answers[id];
         return val !== undefined ? String(val) : "-";
     }).join("");
@@ -51,18 +23,16 @@ function encodeAnswers(answers) {
 }
 
 function decodeAnswers(code) {
-    const trimmed = code.trim().replace(/-(SUBJ|TIST|SWIT)$/i, "");
+    const trimmed = code.trim();
     if (trimmed.startsWith("v2:")) {
         try {
             const compact = atob(trimmed.slice(3));
             const result  = {};
-            // always map position i to ID i+1 (sequential), then only keep current IDs
-            for (let i = 0; i < compact.length; i++) {
+            for (let i = 0; i < ALL_IDS.length; i++) {
                 const ch = compact[i];
-                const id = i + 1;
-                if (ch !== "-" && CURRENT_ID_SET.has(id)) {
+                if (ch !== undefined && ch !== "-") {
                     const num = parseInt(ch, 10);
-                    if (!isNaN(num)) result[id] = num;
+                    if (!isNaN(num)) result[ALL_IDS[i]] = num;
                 }
             }
             return result;
@@ -78,8 +48,7 @@ function decodeAnswers(code) {
         if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
         const result = {};
         for (const [k, v] of Object.entries(parsed)) {
-            const id = Number(k);
-            if (CURRENT_ID_SET.has(id)) result[id] = v;
+            result[Number(k)] = v;
         }
         return result;
     } catch {
@@ -142,18 +111,11 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf", role = null) 
         addText(cat.title.toUpperCase(), 9, true, 100, 100, 180);
         y += 3;
 
-        for (let qi = 0; qi < cat.questions.length; qi++) {
-            const q = cat.questions[qi];
+        for (const q of cat.questions) {
             if (y > 278) { doc.addPage(); y = margin; }
             const val   = answers[q.id] !== undefined ? answers[q.id] : null;
             const label = val !== null ? labelOf(val) : "Skipped";
             const pct   = val !== null ? pctOf(val) : 0;
-
-            const rowH = 5.2;
-            if (qi % 2 === 1) {
-                doc.setFillColor(245, 245, 245);
-                doc.rect(margin - 2, y - 3.5, usable + 4, rowH, "F");
-            }
 
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
@@ -171,7 +133,14 @@ async function exportAsPDF(answers, filename = "quiz-results.pdf", role = null) 
             doc.text(label, labelColX + 24, y, { align: "right" });
 
             addBar(pct);
-            y += lines.length * 4.2 + 1;
+            y += lines.length * 4.2;
+
+            // subtle centered separator line between questions
+            y += 0.5;
+            doc.setDrawColor(220, 220, 220);
+            doc.setLineWidth(0.15);
+            doc.line(margin + 2, y, PW - margin - 2, y);
+            y += 0.5;
         }
         y += 3;
     }
@@ -233,55 +202,6 @@ export default function PreferenceQuiz() {
 
     const bottomRef = useRef(null);
 
-    // ── 67 EASTER EGG ────────────────────────────────────────────────────────
-    const [eggMedia, setEggMedia]   = useState(null);   // { type, src }
-    const [eggFading, setEggFading] = useState(false);
-    const keyBuf = useRef("");
-    const keyTimer = useRef(null);
-
-    const trigger67 = useCallback(() => {
-        const pick = pickEggMedia();
-        setEggMedia(pick);
-        setEggFading(false);
-
-        if (pick.type !== "video") {
-            new Audio(vineBoom).play().catch(() => {});
-            setTimeout(() => setEggFading(true), 2500);
-            setTimeout(() => setEggMedia(null), 3200);
-        }
-    }, []);
-
-    const handleVideoEnd = useCallback(() => {
-        setEggFading(true);
-        setTimeout(() => setEggMedia(null), 700);
-    }, []);
-
-    useEffect(() => {
-        const onKey = (e) => {
-            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-            keyBuf.current += e.key;
-            clearTimeout(keyTimer.current);
-            keyTimer.current = setTimeout(() => { keyBuf.current = ""; }, 800);
-            if (keyBuf.current.includes("67")) {
-                keyBuf.current = "";
-                trigger67();
-            }
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [trigger67]);
-
-    // wraps text so every occurrence of "67" becomes a clickable span
-    const wrap67 = (text) => {
-        if (typeof text !== "string" || !text.includes("67")) return text;
-        const parts = text.split(/(67)/g);
-        return parts.map((p, i) =>
-            p === "67" ? (
-                <span key={i} className="clickable-67" onClick={trigger67}>67</span>
-            ) : p
-        );
-    };
-
     const currentCategory    = CATEGORIES[catIndex];
     const isLastCategory     = catIndex === CATEGORIES.length - 1;
     const isFirstCategory    = catIndex === 0;
@@ -328,10 +248,7 @@ export default function PreferenceQuiz() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const ROLE_TAG = { hypnotist: "TIST", subject: "SUBJ", switch: "SWIT" };
-    const roleTag  = role ? ROLE_TAG[role] : "";
-
-    const shareCode = encodeAnswers(answers) + (roleTag ? `-${roleTag}` : "");
+    const shareCode = encodeAnswers(answers);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareCode).then(() => {
@@ -343,7 +260,7 @@ export default function PreferenceQuiz() {
     const handleImport = (editMode = false) => {
         const decoded = decodeAnswers(importInput);
         if (!decoded) {
-            setImportError("Invalid code -please check and try again.");
+            setImportError("Invalid code — please check and try again.");
             return;
         }
         setAnswers(decoded);
@@ -368,8 +285,7 @@ export default function PreferenceQuiz() {
         setShowPdfModal(false);
         setExporting(true);
         const slug     = pdfName.trim().replace(/\s+/g, "-");
-        const parts    = [slug, roleTag].filter(Boolean).join("-");
-        const filename = parts ? `quiz-result-${parts}.pdf` : "quiz-result.pdf";
+        const filename = slug ? `quiz-result-${slug}.pdf` : "quiz-result.pdf";
         try { await exportAsPDF(answers, filename, role); }
         finally { setExporting(false); }
     };
@@ -386,7 +302,7 @@ export default function PreferenceQuiz() {
     const handleCompareNext = () => {
         const decoded = decodeAnswers(compareMyInput);
         if (!decoded) {
-            setCompareError("Invalid code -please check and try again.");
+            setCompareError("Invalid code — please check and try again.");
             return;
         }
         setCompareMyAnswers(decoded);
@@ -397,7 +313,7 @@ export default function PreferenceQuiz() {
     const handleCompareFinish = () => {
         const decoded = decodeAnswers(compareTheirInput);
         if (!decoded) {
-            setCompareError("Invalid code -please check and try again.");
+            setCompareError("Invalid code — please check and try again.");
             return;
         }
         setCompareTheirAnswers(decoded);
@@ -440,25 +356,15 @@ export default function PreferenceQuiz() {
     }, [compareMyAnswers, compareTheirAnswers]);
 
     const SECTIONS = [
-        { title: "Both Love",               help: "Questions that both you and the other person answered as \"Love\" -your strongest shared interests." },
-        { title: "Shared Interests",         help: "Questions where both of you answered Maybe, Okay, or Like (values 2-4) -things you're both moderately into." },
-        { title: "They're Curious About",    help: "Questions the other person marked as \"Curious about\" -things they'd like to explore." },
-        { title: "They Said No",             help: "Questions the other person answered \"No\" -their hard limits or disinterests." },
+        { title: "Both Love",               help: "Questions that both you and the other person answered as \"Love\" — your strongest shared interests." },
+        { title: "Shared Interests",         help: "Questions where both of you answered Maybe, Okay, or Like (values 2–4) — things you're both moderately into." },
+        { title: "They're Curious About",    help: "Questions the other person marked as \"Curious about\" — things they'd like to explore." },
+        { title: "They Said No",             help: "Questions the other person answered \"No\" — their hard limits or disinterests." },
     ];
 
     const sectionItems = compareData
         ? [compareData.bothLove, compareData.sharedInterest, compareData.theirCurious, compareData.theirNo]
         : [[], [], [], []];
-
-    const EggOverlay = () => eggMedia && (
-        <div className={`egg-overlay${eggFading ? " fading" : ""}`}>
-            {eggMedia.type === "video" ? (
-                <video className="egg-media" src={eggMedia.src} autoPlay onEnded={handleVideoEnd} />
-            ) : (
-                <img className="egg-media" src={eggMedia.src} alt="" />
-            )}
-        </div>
-    );
 
     const Topbar = () => (
         <div className="topbar">
@@ -561,7 +467,7 @@ export default function PreferenceQuiz() {
                                         <p className="compare-empty">No matching questions.</p>
                                     ) : (
                                         sectionItems[i].map((q) => (
-                                            <p key={q.id} className="compare-item">{wrap67(q.text)}</p>
+                                            <p key={q.id} className="compare-item">{q.text}</p>
                                         ))
                                     )}
                                 </div>
@@ -576,7 +482,6 @@ export default function PreferenceQuiz() {
                     </div>
                 </div>
                 <CompareModal />
-                <EggOverlay />
             </div>
         );
     }
@@ -610,76 +515,61 @@ export default function PreferenceQuiz() {
                         <h3 className="update-log-title">Update Log</h3>
                         <div className="update-log-scroll">
                             <div className="update-entry">
-                                <span className="update-date">v9 - Mar 15</span>
+                                <span className="update-date">v6 — Mar 15</span>
                                 <ul className="update-list">
-                                    <li>Something happens when you click or type {wrap67("67")}</li>
+                                    <li>Topbar buttons now evenly spaced</li>
                                 </ul>
                             </div>
                             <div className="update-entry">
-                                <span className="update-date">v8 - Mar 15</span>
+                                <span className="update-date">v5 — Mar 15</span>
                                 <ul className="update-list">
-                                    <li>Your role (SUBJ, TIST, or SWIT) now gets added to the end of your share code and PDF filename</li>
-                                    <li>PDF now has alternating row shading so it's easier to read</li>
-                                    <li>Added this update log you're reading right now</li>
+                                    <li>Compare feature — import two share codes and see what you have in common</li>
+                                    <li>4 dropdown sections: Both Love, Shared Interests, They're Curious About, They Said No</li>
+                                    <li>Help buttons on each comparison dropdown explaining what it shows</li>
+                                    <li>Fixed PDF separator lines — no longer push answers to the next page</li>
                                 </ul>
                             </div>
                             <div className="update-entry">
-                                <span className="update-date">v7 - Mar 15</span>
+                                <span className="update-date">v4 — Mar 14</span>
                                 <ul className="update-list">
-                                    <li>Made the topbar buttons evenly spaced so it looks cleaner</li>
-                                </ul>
-                            </div>
-                            <div className="update-entry">
-                                <span className="update-date">v6 - Mar 15</span>
-                                <ul className="update-list">
-                                    <li>Added a compare feature! You can now import two share codes and see what you have in common</li>
-                                    <li>The comparison page has 4 dropdown sections: Both Love, Shared Interests, They're Curious About, and They Said No</li>
-                                    <li>Each dropdown has a little ? button that explains what it's showing</li>
-                                    <li>Fixed the PDF separator lines, they were pushing answers to the next page before</li>
-                                </ul>
-                            </div>
-                            <div className="update-entry">
-                                <span className="update-date">v4 - Mar 14</span>
-                                <ul className="update-list">
-                                    <li>Added this role selector page so you can pick if you're a Hypnotist, Subject, or Hypnoswitch</li>
-                                    <li>Made the "Curious about" button look different with a dashed purple border so it stands out, and moved it to the end</li>
-                                    <li>Added subtle lines between questions in the PDF so it's easier to read</li>
-                                    <li>You can now import a share code and edit your answers instead of just viewing them</li>
-                                    <li>Added an edit answers button on the results page</li>
-                                    <li>The share code now gets embedded at the bottom of exported PDFs so you can always get it back</li>
-                                    <li>Your role now shows on the PDF too</li>
+                                    <li>Role selector on load — choose Hypnotist, Subject, or Hypnoswitch</li>
+                                    <li>"Curious about" button now looks different (dashed purple border) and appears last</li>
+                                    <li>PDF now has subtle lines between questions for readability</li>
+                                    <li>Import &amp; Edit — import a share code and go back to the quiz to change answers</li>
+                                    <li>Edit answers button on the results page</li>
+                                    <li>Share code is now embedded at the bottom of exported PDFs</li>
+                                    <li>Your selected role is printed on the PDF</li>
                                     <li>Removed "Diapering" and "Watersports" from suggestions</li>
                                 </ul>
                             </div>
                             <div className="update-entry">
                                 <span className="update-date">v3</span>
                                 <ul className="update-list">
-                                    <li>You can now name your PDF file (e.g. quiz-result-Alice.pdf)</li>
-                                    <li>Added a Socials button</li>
+                                    <li>You can name the PDF file (e.g. quiz-result-Alice.pdf)</li>
+                                    <li>Added Socials button linking to guns.lol/meltingg</li>
                                 </ul>
                             </div>
                             <div className="update-entry">
                                 <span className="update-date">v2</span>
                                 <ul className="update-list">
-                                    <li>Made the exported share codes way shorter</li>
-                                    <li>Old share codes still work, don't worry</li>
+                                    <li>Exported share codes are now much shorter (compact encoding)</li>
+                                    <li>Backward compatibility — old share codes still work</li>
                                 </ul>
                             </div>
                             <div className="update-entry">
                                 <span className="update-date">v1</span>
                                 <ul className="update-list">
-                                    <li>Fixed the mobile layout</li>
-                                    <li>All questions are optional now, you can skip whatever you want</li>
-                                    <li>Removed print-as-PNG because it looked bad</li>
-                                    <li>Added code importing and exporting so you can share your results</li>
-                                    <li>Fixed the PDF export, it was taking way too much space before</li>
-                                    <li>Added a Ko-fi button if you wanna support me</li>
+                                    <li>Fixed mobile layout</li>
+                                    <li>Added skip question / category — all questions are optional</li>
+                                    <li>Removed print-as-PNG (bad quality)</li>
+                                    <li>Added code importing and exporting</li>
+                                    <li>Fixed PDF export — no longer takes lots of space</li>
+                                    <li>Added Ko-fi support button</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
                 </div>
-                <EggOverlay />
             </div>
         );
     }
@@ -726,7 +616,7 @@ export default function PreferenceQuiz() {
                 <div className="progress-row">
                     <p className="progress-label">
                         {answeredInCurrent} of {currentCategory.questions.length} answered
-                        <span className="skip-hint"> -questions are optional</span>
+                        <span className="skip-hint"> — questions are optional</span>
                     </p>
                     <button className="scroll-bottom-btn" onClick={handleScrollToBottom}>
                         ↓ Jump to bottom
@@ -744,7 +634,7 @@ export default function PreferenceQuiz() {
                     >
                         <p className="question-number">Q{String(i + 1).padStart(2, "0")}</p>
                         <div className="question-text-wrapper">
-                            <p className="question-text">{wrap67(q.text)}</p>
+                            <p className="question-text">{q.text}</p>
                             {q.desc && (
                                 <span
                                     className="tooltip-anchor"
@@ -813,7 +703,6 @@ export default function PreferenceQuiz() {
                     </div>
                 )}
                 <CompareModal />
-                <EggOverlay />
             </div>
         );
     }
@@ -828,7 +717,7 @@ export default function PreferenceQuiz() {
                     <p className="results-eyebrow">Complete</p>
                     <h2 className="results-title">Your Results</h2>
                     <p className="results-sub">
-                        {wrap67(`${Object.keys(answers).length} questions answered across ${CATEGORIES.length} categories`)}
+                        {Object.keys(answers).length} questions answered across {CATEGORIES.length} categories
                     </p>
                 </div>
 
@@ -840,13 +729,13 @@ export default function PreferenceQuiz() {
                             const skipped = val === undefined;
                             return (
                                 <div key={q.id} className={`result-row${skipped ? " skipped" : ""}`}>
-                                    <p className="result-question">{wrap67(q.text)}</p>
+                                    <p className="result-question">{q.text}</p>
                                     <div className="result-bar-track">
                                         {!skipped && (
                                             <div className="result-bar-fill" style={{ width: `${pctOf(val)}%` }} />
                                         )}
                                     </div>
-                                    <span className="result-value">{skipped ? "-" : labelOf(val)}</span>
+                                    <span className="result-value">{skipped ? "—" : labelOf(val)}</span>
                                 </div>
                             );
                         })}
@@ -930,7 +819,7 @@ export default function PreferenceQuiz() {
                             placeholder="e.g. Alice (leave blank to skip)"
                             autoFocus
                         />
-                        <p className="privacy-note">🔒 The name is not stored anywhere -it is only used to label the file.</p>
+                        <p className="privacy-note">🔒 The name is not stored anywhere — it is only used to label the file.</p>
                         <div className="modal-actions">
                             <button className="action-btn primary" onClick={handleConfirmPDF}>
                                 ↓ Download PDF
@@ -941,7 +830,6 @@ export default function PreferenceQuiz() {
                 </div>
             )}
             <CompareModal />
-            <EggOverlay />
         </div>
     );
 }
