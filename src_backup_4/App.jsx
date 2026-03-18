@@ -11,7 +11,6 @@ import { exportAsPDF } from "./utils/pdfExport.js";
 
 // ─── EXTRACTED COMPONENTS ────────────────────────────────────────────────────
 import { useEasterEgg, EggOverlay } from "./components/EasterEgg.jsx";
-import { useHackerMode, HackerOverlay } from "./components/HackerMode.jsx";
 import Topbar from "./components/Topbar.jsx";
 import CompareModal from "./components/CompareModal.jsx";
 import UpdateLog from "./components/UpdateLog.jsx";
@@ -47,7 +46,7 @@ export default function PreferenceQuiz() {
     const [compareView,        setCompareView]        = useState(false);
     const [compareMyAnswers,   setCompareMyAnswers]   = useState(null);
     const [compareTheirAnswers,setCompareTheirAnswers]= useState(null);
-    const [openSections,       setOpenSections]       = useState({ 0: true, 1: false, 2: false, 3: false, 4: false });
+    const [openSections,       setOpenSections]       = useState({ 0: true, 1: false, 2: false, 3: false });
     const [helpVisible,        setHelpVisible]        = useState({});
     const [compareMySwitchData,    setCompareMySwitchData]    = useState(null);
     const [compareTheirSwitchData, setCompareTheirSwitchData] = useState(null);
@@ -67,9 +66,6 @@ export default function PreferenceQuiz() {
 
     // ── EASTER EGG HOOK ─────────────────────────────────────────────────────
     const { eggMedia, eggFading, handleVideoEnd, wrap67 } = useEasterEgg();
-
-    // ── HACKER MODE HOOK ──────────────────────────────────────────────────────
-    const { hackerActive, hackerBooting, onBootComplete } = useHackerMode();
 
     // ── ROLE-SPECIFIC CATEGORIES ────────────────────────────────────────────
     const displayCategories = useMemo(() => {
@@ -305,7 +301,7 @@ export default function PreferenceQuiz() {
     const finishCompare = () => {
         setShowCompareModal(false);
         setCompareError("");
-        setOpenSections({ 0: true, 1: false, 2: false, 3: false, 4: false });
+        setOpenSections({ 0: true, 1: false, 2: false, 3: false });
         setHelpVisible({});
         setCompareView(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -351,11 +347,6 @@ export default function PreferenceQuiz() {
         const bothLove = allQs.filter(
             (q) => compareMyAnswers[q.id] === 5 && compareTheirAnswers[q.id] === 5
         );
-        const bothLikeOrLove = allQs.filter((q) => {
-            const my = compareMyAnswers[q.id];
-            const their = compareTheirAnswers[q.id];
-            return my >= 4 && their >= 4 && !(my === 5 && their === 5);
-        });
         const sharedInterest = allQs.filter((q) => {
             const my = compareMyAnswers[q.id];
             const their = compareTheirAnswers[q.id];
@@ -364,24 +355,22 @@ export default function PreferenceQuiz() {
         const theirCurious = allQs.filter((q) => compareTheirAnswers[q.id] === 1);
         const theirNo = allQs.filter((q) => compareTheirAnswers[q.id] === 0);
 
-        return { bothLove, bothLikeOrLove, sharedInterest, theirCurious, theirNo };
+        return { bothLove, sharedInterest, theirCurious, theirNo };
     }, [compareMyAnswers, compareTheirAnswers, displayCategories]);
 
     const SECTIONS = [
-        { title: "Both Love",               help: "Questions that both you and the other person answered as \"Love\" — your strongest shared interests." },
-        { title: "Both Like or Love",        help: "Questions where both of you answered \"Like\" or \"Love\" (but not both \"Love\") — strong mutual interest." },
-        { title: "Shared Interests",         help: "Questions where both of you answered Maybe, Okay, or Like (values 2-4) — things you're both moderately into." },
-        { title: "They're Curious About",    help: "Questions the other person marked as \"Curious about\" — things they'd like to explore." },
-        { title: "They Said No",             help: "Questions the other person answered \"No\" — their hard limits or disinterests." },
+        { title: "Both Love",               help: "Questions that both you and the other person answered as \"Love\" -your strongest shared interests." },
+        { title: "Shared Interests",         help: "Questions where both of you answered Maybe, Okay, or Like (values 2-4) -things you're both moderately into." },
+        { title: "They're Curious About",    help: "Questions the other person marked as \"Curious about\" -things they'd like to explore." },
+        { title: "They Said No",             help: "Questions the other person answered \"No\" -their hard limits or disinterests." },
     ];
 
     const sectionItems = compareData
-        ? [compareData.bothLove, compareData.bothLikeOrLove, compareData.sharedInterest, compareData.theirCurious, compareData.theirNo]
-        : [[], [], [], [], []];
+        ? [compareData.bothLove, compareData.sharedInterest, compareData.theirCurious, compareData.theirNo]
+        : [[], [], [], []];
 
     // ── Shared modal/overlay props ───────────────────────────────────────────
     const eggOverlayProps = { eggMedia, eggFading, handleVideoEnd };
-    const hackerOverlayProps = { hackerActive, hackerBooting, onBootComplete };
     const topbarProps = {
         onImport: () => setShowImportModal(true),
         onCompare: handleOpenCompare,
@@ -450,7 +439,6 @@ export default function PreferenceQuiz() {
                 </div>
                 <CompareModal {...compareModalProps} />
                 <EggOverlay {...eggOverlayProps} />
-                <HackerOverlay {...hackerOverlayProps} />
             </div>
         );
     }
@@ -521,7 +509,6 @@ export default function PreferenceQuiz() {
                 )}
 
                 <EggOverlay {...eggOverlayProps} />
-                <HackerOverlay {...hackerOverlayProps} />
             </div>
         );
     }
@@ -721,7 +708,6 @@ export default function PreferenceQuiz() {
                 )}
                 <CompareModal {...compareModalProps} />
                 <EggOverlay {...eggOverlayProps} />
-                <HackerOverlay {...hackerOverlayProps} />
             </div>
         );
     }
@@ -969,7 +955,6 @@ export default function PreferenceQuiz() {
 
             <CompareModal {...compareModalProps} />
             <EggOverlay {...eggOverlayProps} />
-            <HackerOverlay {...hackerOverlayProps} />
         </div>
     );
 }

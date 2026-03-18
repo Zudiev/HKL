@@ -4,13 +4,6 @@ export default function UpdateLog({ wrap67 }) {
             <h3 className="update-log-title">Update Log</h3>
             <div className="update-log-scroll">
                 <div className="update-entry">
-                    <span className="update-date">v12 - Mar 18</span>
-                    <ul className="update-list">
-                        <li>Type hack on your keyboard</li>
-                        <li>New category to compare feature</li>
-                    </ul>
-                </div>
-                <div className="update-entry">
                     <span className="update-date">v11 - Mar 17</span>
                     <ul className="update-list">
                         <li>You can now save results locally in your browser and load them later</li>
