@@ -1,19 +1,321 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import "./quiz.css";
 import { CATEGORIES as CATEGORIES_DEFAULT, SCALE } from "./questions/questions.js";
 import { CATEGORIES as CATEGORIES_SUB } from "./questions/questionsSub.js";
 import { CATEGORIES as CATEGORIES_TIST } from "./questions/questionsTist.js";
 
-// ─── EXTRACTED UTILS ─────────────────────────────────────────────────────────
-import { labelOf, pctOf } from "./utils/helpers.js";
-import { encodeAnswers, decodeAnswers } from "./utils/shareCode.js";
-import { exportAsPDF } from "./utils/pdfExport.js";
+// ─── 67 EASTER EGG ASSETS ───────────────────────────────────────────────────
+import vineBoom from "./assets/sounds/vine-boom.mp3";
+import img1 from "./assets/Shush.jpg";
+import img2 from "./assets/FUCK.png";
+import img3 from "./assets/3E999D72-B7F7-4B68-A696-64161760C5F3.gif";
+import img4 from "./assets/G8lXTj7WQAAGD1H.png";
+import vid1 from "./assets/WKno0Ci.mp4";
 
-// ─── EXTRACTED COMPONENTS ────────────────────────────────────────────────────
-import { useEasterEgg, EggOverlay } from "./components/EasterEgg.jsx";
-import Topbar from "./components/Topbar.jsx";
-import CompareModal from "./components/CompareModal.jsx";
-import UpdateLog from "./components/UpdateLog.jsx";
+const EGG_IMAGES = [
+    { type: "image", src: img1 },
+    { type: "image", src: img2 },
+    { type: "image", src: img3 },
+    { type: "image", src: img4 },
+];
+const EGG_VIDEO = { type: "video", src: vid1 };
+
+function pickEggMedia() {
+    // 80% chance image, 20% chance video
+    if (Math.random() < 0.8 || EGG_IMAGES.length === 0) {
+        return EGG_IMAGES[Math.floor(Math.random() * EGG_IMAGES.length)];
+    }
+    return EGG_VIDEO;
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+const MAX_VAL = Math.max(...SCALE.map((s) => s.value));
+const labelOf = (val) => SCALE.find((s) => s.value === val)?.label ?? "-";
+const pctOf   = (val) => Math.round((val / MAX_VAL) * 100);
+
+// ─── ENCODE / DECODE SHARE CODE ──────────────────────────────────────────────
+const ALL_IDS = CATEGORIES_DEFAULT.flatMap((c) => c.questions.map((q) => q.id))
+    .sort((a, b) => a - b);
+const CURRENT_ID_SET = new Set(ALL_IDS);
+
+// full sequential range covering every ID that has ever existed (1-169)
+// this keeps old codes compatible even when questions are removed
+const MAX_EVER_ID = 169;
+const FULL_IDS = Array.from({ length: MAX_EVER_ID }, (_, i) => i + 1);
+
+// pair encoding for switch mode: one char encodes both sub + tist answer
+const PAIR_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW"; // 49 chars for 7×7
+const PAIR_VAL_IDX = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }; // unanswered → 6
+const PAIR_IDX_VAL = [0, 1, 2, 3, 4, 5, null]; // null = unanswered
+
+function encodeAnswers(answers, tistOverrides = null) {
+    if (tistOverrides) {
+        // v3s pair encoding: one char per question encodes both sub + tist
+        const pairCompact = FULL_IDS.map((id) => {
+            const subVal = answers[id];
+            const tistVal = tistOverrides[id] !== undefined ? tistOverrides[id] : subVal;
+            const si = subVal !== undefined ? PAIR_VAL_IDX[subVal] : 6;
+            const ti = tistVal !== undefined ? PAIR_VAL_IDX[tistVal] : 6;
+            return PAIR_CHARS[si * 7 + ti];
+        }).join("");
+        return "v3s:" + btoa(pairCompact);
+    }
+
+    const compact = FULL_IDS.map((id) => {
+        const val = answers[id];
+        return val !== undefined ? String(val) : "-";
+    }).join("");
+    return "v2:" + btoa(compact);
+}
+
+function decodeAnswers(code) {
+    const trimmed = code.trim().replace(/-(SUBJ|TIST|SWIT)$/i, "");
+
+    // v3s pair encoding: one char per question encodes both sub + tist
+    if (trimmed.startsWith("v3s:")) {
+        try {
+            const pairCompact = atob(trimmed.slice(4));
+            const subResult = {};
+            const tistResult = {};
+            for (let i = 0; i < pairCompact.length; i++) {
+                const ch = pairCompact[i];
+                const id = i + 1;
+                if (!CURRENT_ID_SET.has(id)) continue;
+                const idx = PAIR_CHARS.indexOf(ch);
+                if (idx === -1) continue;
+                const si = Math.floor(idx / 7);
+                const ti = idx % 7;
+                const subVal = PAIR_IDX_VAL[si];
+                const tistVal = PAIR_IDX_VAL[ti];
+                if (subVal !== null) subResult[id] = subVal;
+                if (tistVal !== null && tistVal !== subVal) tistResult[id] = tistVal;
+            }
+            return { answers: subResult, tistAnswers: tistResult };
+        } catch {
+            return null;
+        }
+    }
+
+    // legacy switch format: v2s:<base64(sub|tist)>
+    if (trimmed.startsWith("v2s:")) {
+        try {
+            const decoded = atob(trimmed.slice(4));
+            const pipeIdx = decoded.indexOf("|");
+            if (pipeIdx === -1) return null;
+            const subCompact  = decoded.slice(0, pipeIdx);
+            const tistCompact = decoded.slice(pipeIdx + 1);
+
+            const subResult = {};
+            for (let i = 0; i < subCompact.length; i++) {
+                const ch = subCompact[i];
+                const id = i + 1;
+                if (ch !== "-" && CURRENT_ID_SET.has(id)) {
+                    const num = parseInt(ch, 10);
+                    if (!isNaN(num)) subResult[id] = num;
+                }
+            }
+
+            const tistResult = {};
+            for (let i = 0; i < tistCompact.length; i++) {
+                const ch = tistCompact[i];
+                const id = i + 1;
+                if (ch !== "-" && CURRENT_ID_SET.has(id)) {
+                    const num = parseInt(ch, 10);
+                    if (!isNaN(num)) tistResult[id] = num;
+                }
+            }
+
+            return { answers: subResult, tistAnswers: tistResult };
+        } catch {
+            return null;
+        }
+    }
+
+    if (trimmed.startsWith("v2:")) {
+        try {
+            const compact = atob(trimmed.slice(3));
+            const result  = {};
+            // always map position i to ID i+1 (sequential), then only keep current IDs
+            for (let i = 0; i < compact.length; i++) {
+                const ch = compact[i];
+                const id = i + 1;
+                if (ch !== "-" && CURRENT_ID_SET.has(id)) {
+                    const num = parseInt(ch, 10);
+                    if (!isNaN(num)) result[id] = num;
+                }
+            }
+            return result;
+        } catch {
+            return null;
+        }
+    }
+    try {
+        const binary  = atob(trimmed);
+        const bytes   = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        const payload = new TextDecoder().decode(bytes);
+        const parsed  = JSON.parse(payload);
+        if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
+        const result = {};
+        for (const [k, v] of Object.entries(parsed)) {
+            const id = Number(k);
+            if (CURRENT_ID_SET.has(id)) result[id] = v;
+        }
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+// ─── TEXT-BASED PDF ───────────────────────────────────────────────────────────
+
+async function exportAsPDF(answers, filename = "quiz-results.pdf", role = null, categories = CATEGORIES_DEFAULT, tistAnswers = null) {
+    const { jsPDF } = await import("jspdf");
+
+    // build tist question text lookup for switch mode
+    const tistQText = {};
+    if (tistAnswers) {
+        CATEGORIES_TIST.flatMap((c) => c.questions).forEach((q) => {
+            tistQText[q.id] = q.text;
+        });
+    }
+
+    const doc    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const PW     = 210;
+    const margin = 16;
+    const usable = PW - margin * 2;
+    let   y      = margin;
+
+    const addText = (text, size, bold = false, r = 20, g = 20, b = 20) => {
+        doc.setFontSize(size);
+        doc.setFont("helvetica", bold ? "bold" : "normal");
+        doc.setTextColor(r, g, b);
+        const lines = doc.splitTextToSize(text, usable);
+        lines.forEach((line) => {
+            if (y > 280) { doc.addPage(); y = margin; }
+            doc.text(line, margin, y);
+            y += size * 0.45;
+        });
+    };
+
+    const addBar = (pct, tist = false) => {
+        const barW  = 40;
+        const barH  = tist ? 2 : 2.5;
+        const barX  = PW - margin - barW;
+        if (y > 280) { doc.addPage(); y = margin; }
+        doc.setFillColor(220, 220, 220);
+        doc.roundedRect(barX, y - 2.5, barW, barH, 1, 1, "F");
+        if (pct > 0) {
+            if (tist) {
+                doc.setFillColor(150, 130, 200);
+            } else {
+                doc.setFillColor(201, 169, 110);
+            }
+            doc.roundedRect(barX, y - 2.5, barW * (pct / 100), barH, 1, 1, "F");
+        }
+    };
+
+    const labelColX = PW - margin - 40 - 30;
+
+    addText("Quiz Results", 22, true, 15, 15, 15);
+    y += 2;
+    if (role) {
+        addText(`Role: ${role.charAt(0).toUpperCase() + role.slice(1)}`, 10, false, 150, 110, 50);
+        y += 2;
+    }
+    addText(`${Object.keys(answers).length} questions answered across ${categories.length} categories`, 9, false, 120, 120, 120);
+    y += 8;
+
+    for (const cat of categories) {
+        if (y > 265) { doc.addPage(); y = margin; }
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y, PW - margin, y);
+        y += 5;
+        addText(cat.title.toUpperCase(), 9, true, 100, 100, 180);
+        y += 3;
+
+        for (let qi = 0; qi < cat.questions.length; qi++) {
+            const q = cat.questions[qi];
+            if (y > 278) { doc.addPage(); y = margin; }
+            const val   = answers[q.id] !== undefined ? answers[q.id] : null;
+            const label = val !== null ? labelOf(val) : "Skipped";
+            const pct   = val !== null ? pctOf(val) : 0;
+
+            const rowH = 5.2;
+            if (qi % 2 === 1) {
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin - 2, y - 3.5, usable + 4, rowH, "F");
+            }
+
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(40, 40, 40);
+            const lines = doc.splitTextToSize(q.text, labelColX - margin - 4);
+            doc.text(lines, margin, y);
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            if (val !== null) {
+                doc.setTextColor(150, 110, 50);
+            } else {
+                doc.setTextColor(160, 160, 160);
+            }
+            doc.text(label, labelColX + 24, y, { align: "right" });
+
+            addBar(pct);
+            y += lines.length * 4.2 + 1;
+
+            // switch mode: show tist answer if it differs
+            if (tistAnswers && val !== null) {
+                const tistVal = tistAnswers[q.id] !== undefined ? tistAnswers[q.id] : val;
+                if (tistVal !== val) {
+                    if (y > 280) { doc.addPage(); y = margin; }
+                    const tistLabel = labelOf(tistVal);
+                    const tistPct   = pctOf(tistVal);
+                    const tistText  = tistQText[q.id] || q.text;
+
+                    doc.setFontSize(7);
+                    doc.setFont("helvetica", "italic");
+                    doc.setTextColor(130, 115, 170);
+                    const tLines = doc.splitTextToSize(`\u21C4 ${tistText}`, labelColX - margin - 12);
+                    doc.text(tLines[0] || tistText, margin + 8, y);
+
+                    doc.setFontSize(7);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(130, 115, 170);
+                    doc.text(tistLabel, labelColX + 24, y, { align: "right" });
+
+                    addBar(tistPct, true);
+                    y += 4;
+                }
+            }
+        }
+        y += 3;
+    }
+
+    // embed share code at the bottom of the PDF
+    y += 6;
+    if (y > 265) { doc.addPage(); y = margin; }
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, PW - margin, y);
+    y += 5;
+    addText("SHARE CODE", 8, true, 100, 100, 180);
+    y += 2;
+    addText("Use this code to import and edit these results on the site:", 7, false, 140, 140, 140);
+    y += 2;
+    const code = encodeAnswers(answers, tistAnswers);
+    doc.setFontSize(6);
+    doc.setFont("courier", "normal");
+    doc.setTextColor(80, 80, 80);
+    const codeLines = doc.splitTextToSize(code, usable);
+    codeLines.forEach((line) => {
+        if (y > 285) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 3;
+    });
+
+    doc.save(filename);
+}
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
@@ -63,9 +365,6 @@ export default function PreferenceQuiz() {
     const [resultTistOpen, setResultTistOpen] = useState(false);
 
     const bottomRef = useRef(null);
-
-    // ── EASTER EGG HOOK ─────────────────────────────────────────────────────
-    const { eggMedia, eggFading, handleVideoEnd, wrap67 } = useEasterEgg();
 
     // ── ROLE-SPECIFIC CATEGORIES ────────────────────────────────────────────
     const displayCategories = useMemo(() => {
@@ -124,6 +423,55 @@ export default function PreferenceQuiz() {
         CATEGORIES_TIST.flatMap((c) => c.questions).forEach((q) => { map[q.id] = q; });
         return map;
     }, []);
+
+    // ── 67 EASTER EGG ────────────────────────────────────────────────────────
+    const [eggMedia, setEggMedia]   = useState(null);   // { type, src }
+    const [eggFading, setEggFading] = useState(false);
+    const keyBuf = useRef("");
+    const keyTimer = useRef(null);
+
+    const trigger67 = useCallback(() => {
+        const pick = pickEggMedia();
+        setEggMedia(pick);
+        setEggFading(false);
+
+        if (pick.type !== "video") {
+            new Audio(vineBoom).play().catch(() => {});
+            setTimeout(() => setEggFading(true), 2500);
+            setTimeout(() => setEggMedia(null), 3200);
+        }
+    }, []);
+
+    const handleVideoEnd = useCallback(() => {
+        setEggFading(true);
+        setTimeout(() => setEggMedia(null), 700);
+    }, []);
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+            keyBuf.current += e.key;
+            clearTimeout(keyTimer.current);
+            keyTimer.current = setTimeout(() => { keyBuf.current = ""; }, 800);
+            if (keyBuf.current.includes("67")) {
+                keyBuf.current = "";
+                trigger67();
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [trigger67]);
+
+    // wraps text so every occurrence of "67" becomes a clickable span
+    const wrap67 = (text) => {
+        if (typeof text !== "string" || !text.includes("67")) return text;
+        const parts = text.split(/(67)/g);
+        return parts.map((p, i) =>
+            p === "67" ? (
+                <span key={i} className="clickable-67" onClick={trigger67}>67</span>
+            ) : p
+        );
+    };
 
     const currentCategory    = displayCategories[catIndex];
     const isLastCategory     = catIndex === displayCategories.length - 1;
@@ -369,33 +717,109 @@ export default function PreferenceQuiz() {
         ? [compareData.bothLove, compareData.sharedInterest, compareData.theirCurious, compareData.theirNo]
         : [[], [], [], []];
 
-    // ── Shared modal/overlay props ───────────────────────────────────────────
-    const eggOverlayProps = { eggMedia, eggFading, handleVideoEnd };
-    const topbarProps = {
-        onImport: () => setShowImportModal(true),
-        onCompare: handleOpenCompare,
-    };
-    const compareModalProps = {
-        show: showCompareModal,
-        step: compareStep,
-        myInput: compareMyInput,
-        theirInput: compareTheirInput,
-        error: compareError,
-        onMyInputChange: (v) => { setCompareMyInput(v); setCompareError(""); },
-        onTheirInputChange: (v) => { setCompareTheirInput(v); setCompareError(""); },
-        onNext: handleCompareNext,
-        onMyRole: handleCompareMyRole,
-        onTheirRole: handleCompareTheirRole,
-        onFinish: handleCompareFinish,
-        onBack: () => { setCompareStep(1); setCompareError(""); },
-        onClose: () => setShowCompareModal(false),
-    };
+    const EggOverlay = () => eggMedia && (
+        <div className={`egg-overlay${eggFading ? " fading" : ""}`}>
+            {eggMedia.type === "video" ? (
+                <video className="egg-media" src={eggMedia.src} autoPlay onEnded={handleVideoEnd} />
+            ) : (
+                <img className="egg-media" src={eggMedia.src} alt="" />
+            )}
+        </div>
+    );
+
+    const Topbar = () => (
+        <div className="topbar">
+            <button className="import-btn" onClick={() => setShowImportModal(true)}>
+                ↑ Import results
+            </button>
+            <button className="compare-btn" onClick={handleOpenCompare}>
+                ⇄ Compare
+            </button>
+            <a
+                className="socials-btn"
+                href="https://guns.lol/meltingg"
+                target="_blank"
+                rel="noreferrer"
+            >
+                ✦ Socials
+            </a>
+            <a
+                className="kofi-btn"
+                href="https://ko-fi.com/lycheejuice"
+                target="_blank"
+                rel="noreferrer"
+            >
+                ☕ Support me on Ko-fi
+            </a>
+        </div>
+    );
+
+    // ── COMPARE MODAL (shared across all views) ─────────────────────────────
+    const SwitchRolePicker = ({ label, onPick }) => (
+        <>
+            <h3 className="modal-title">{label}</h3>
+            <p className="modal-sub">This is a hypnoswitch code. Which role's answers should be used?</p>
+            <div className="modal-actions">
+                <button className="action-btn primary" onClick={() => onPick("sub")}>Subject</button>
+                <button className="action-btn primary" onClick={() => onPick("tist")}>Hypnotist</button>
+                <button className="action-btn" onClick={() => setShowCompareModal(false)}>Cancel</button>
+            </div>
+        </>
+    );
+
+    const CompareModal = () => showCompareModal && (
+        <div className="modal-overlay" onClick={() => setShowCompareModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                {compareStep === 1 && (
+                    <>
+                        <h3 className="modal-title">Step 1: Your results</h3>
+                        <p className="modal-sub">Paste your own share code below.</p>
+                        <textarea
+                            className="code-box"
+                            value={compareMyInput}
+                            onChange={(e) => { setCompareMyInput(e.target.value); setCompareError(""); }}
+                            placeholder="Paste your code here…"
+                        />
+                        {compareError && <p className="import-error">{compareError}</p>}
+                        <div className="modal-actions">
+                            <button className="action-btn primary" onClick={handleCompareNext}>Next →</button>
+                            <button className="action-btn" onClick={() => setShowCompareModal(false)}>Cancel</button>
+                        </div>
+                    </>
+                )}
+                {compareStep === 2 && (
+                    <SwitchRolePicker label="Your role" onPick={handleCompareMyRole} />
+                )}
+                {compareStep === 3 && (
+                    <>
+                        <h3 className="modal-title">Step 2: Their results</h3>
+                        <p className="modal-sub">Now paste the other person's share code.</p>
+                        <textarea
+                            className="code-box"
+                            value={compareTheirInput}
+                            onChange={(e) => { setCompareTheirInput(e.target.value); setCompareError(""); }}
+                            placeholder="Paste their code here…"
+                        />
+                        {compareError && <p className="import-error">{compareError}</p>}
+                        <div className="modal-actions">
+                            <button className="action-btn primary" onClick={handleCompareFinish}>Compare</button>
+                            <button className="action-btn" onClick={() => { setCompareStep(1); setCompareError(""); }}>← Back</button>
+                            <button className="action-btn" onClick={() => setShowCompareModal(false)}>Cancel</button>
+                        </div>
+                    </>
+                )}
+                {compareStep === 4 && (
+                    <SwitchRolePicker label="Their role" onPick={handleCompareTheirRole} />
+                )}
+            </div>
+        </div>
+    );
 
     // ── COMPARE VIEW ──────────────────────────────────────────────────────────
     if (compareView && compareData) {
         return (
             <div className="quiz-wrapper">
-                <Topbar {...topbarProps} />
+                <Topbar />
                 <div className="results">
                     <div className="results-header">
                         <p className="results-eyebrow">Comparison</p>
@@ -437,8 +861,8 @@ export default function PreferenceQuiz() {
                         </button>
                     </div>
                 </div>
-                <CompareModal {...compareModalProps} />
-                <EggOverlay {...eggOverlayProps} />
+                <CompareModal />
+                <EggOverlay />
             </div>
         );
     }
@@ -468,8 +892,97 @@ export default function PreferenceQuiz() {
                         </button>
                     </div>
 
-                    <UpdateLog wrap67={wrap67} />
-
+                    <div className="update-log">
+                        <h3 className="update-log-title">Update Log</h3>
+                        <div className="update-log-scroll">
+                            <div className="update-entry">
+                                <span className="update-date">v11 - Mar 17</span>
+                                <ul className="update-list">
+                                    <li>You can now save results locally in your browser and load them later</li>
+                                    <li>Hypnoswitch results page now has separate collapsible sections for subject and hypnotist responses</li>
+                                    <li>Hypnoswitch share codes are now the same length as single-role codes</li>
+                                    <li>Hypnoswitch PDF export now generates two separate files (one for each role)</li>
+                                    <li>Compare feature now asks which role to use when a hypnoswitch code is detected</li>
+                                    <li>Added jump to top button at the bottom of every page</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v10 - Mar 17</span>
+                                <ul className="update-list">
+                                    <li>Hypnotists now see hypnotist-specific questions and subjects see subject-specific questions</li>
+                                    <li>Hypnoswitches see subject questions with a dropdown on each question to answer the hypnotist version separately</li>
+                                    <li>If you don't answer the hypnotist dropdown, it inherits your subject answer</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v9 - Mar 15</span>
+                                <ul className="update-list">
+                                    <li>Something happens when you click or type {wrap67("67")}</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v8 - Mar 15</span>
+                                <ul className="update-list">
+                                    <li>Your role (SUBJ, TIST, or SWIT) now gets added to the end of your share code and PDF filename</li>
+                                    <li>PDF now has alternating row shading so it's easier to read</li>
+                                    <li>Added this update log you're reading right now</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v7 - Mar 15</span>
+                                <ul className="update-list">
+                                    <li>Made the topbar buttons evenly spaced so it looks cleaner</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v6 - Mar 15</span>
+                                <ul className="update-list">
+                                    <li>Added a compare feature! You can now import two share codes and see what you have in common</li>
+                                    <li>The comparison page has 4 dropdown sections: Both Love, Shared Interests, They're Curious About, and They Said No</li>
+                                    <li>Each dropdown has a little ? button that explains what it's showing</li>
+                                    <li>Fixed the PDF separator lines, they were pushing answers to the next page before</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v4 - Mar 14</span>
+                                <ul className="update-list">
+                                    <li>Added this role selector page so you can pick if you're a Hypnotist, Subject, or Hypnoswitch</li>
+                                    <li>Made the "Curious about" button look different with a dashed purple border so it stands out, and moved it to the end</li>
+                                    <li>Added subtle lines between questions in the PDF so it's easier to read</li>
+                                    <li>You can now import a share code and edit your answers instead of just viewing them</li>
+                                    <li>Added an edit answers button on the results page</li>
+                                    <li>The share code now gets embedded at the bottom of exported PDFs so you can always get it back</li>
+                                    <li>Your role now shows on the PDF too</li>
+                                    <li>Removed "Diapering" and "Watersports" from suggestions</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v3</span>
+                                <ul className="update-list">
+                                    <li>You can now name your PDF file (e.g. quiz-result-Alice.pdf)</li>
+                                    <li>Added a Socials button</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v2</span>
+                                <ul className="update-list">
+                                    <li>Made the exported share codes way shorter</li>
+                                    <li>Old share codes still work, don't worry</li>
+                                </ul>
+                            </div>
+                            <div className="update-entry">
+                                <span className="update-date">v1</span>
+                                <ul className="update-list">
+                                    <li>Fixed the mobile layout</li>
+                                    <li>All questions are optional now, you can skip whatever you want</li>
+                                    <li>Removed print-as-PNG because it looked bad</li>
+                                    <li>Added code importing and exporting so you can share your results</li>
+                                    <li>Fixed the PDF export, it was taking way too much space before</li>
+                                    <li>Added a Ko-fi button if you wanna support me</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                     {savedResults.length > 0 && (
                         <div className="saved-welcome-row">
                             <button className="action-btn primary" onClick={() => setShowSavedModal(true)}>
@@ -508,7 +1021,7 @@ export default function PreferenceQuiz() {
                     </div>
                 )}
 
-                <EggOverlay {...eggOverlayProps} />
+                <EggOverlay />
             </div>
         );
     }
@@ -519,7 +1032,7 @@ export default function PreferenceQuiz() {
 
         return (
             <div className="quiz-wrapper">
-                <Topbar {...topbarProps} />
+                <Topbar />
 
                 <nav className="category-strip" aria-label="Progress">
                     {displayCategories.map((cat, i) => {
@@ -706,8 +1219,8 @@ export default function PreferenceQuiz() {
                         </div>
                     </div>
                 )}
-                <CompareModal {...compareModalProps} />
-                <EggOverlay {...eggOverlayProps} />
+                <CompareModal />
+                <EggOverlay />
             </div>
         );
     }
@@ -715,7 +1228,7 @@ export default function PreferenceQuiz() {
     // ── RESULTS VIEW ──────────────────────────────────────────────────────────
     return (
         <div className="quiz-wrapper">
-            <Topbar {...topbarProps} />
+            <Topbar />
 
             <div className="results">
                 <div className="results-header">
@@ -953,8 +1466,8 @@ export default function PreferenceQuiz() {
                 </div>
             )}
 
-            <CompareModal {...compareModalProps} />
-            <EggOverlay {...eggOverlayProps} />
+            <CompareModal />
+            <EggOverlay />
         </div>
     );
 }

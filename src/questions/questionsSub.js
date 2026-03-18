@@ -1,0 +1,277 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// SCALE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const SCALE = [
+  { value: 1, label: "Curious about"    },
+  { value: 0, label: "No"     },
+  { value: 2, label: "Maybe" },
+  { value: 3, label: "Okay"     },
+  { value: 4, label: "Like"    },
+  { value: 5, label: "Love"    },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const CATEGORIES = [
+
+  // ── 1. Basics ──────────────────────────────────────────────────────────────
+  {
+    id: "basics",
+    title: "Basics",
+    description: "",
+    questions: [
+      { id: 1,  text: "I enjoy working with cisgender people" },
+      { id: 2,  text: "I enjoy working with trans people" },
+      { id: 3,  text: "I enjoy working with non-binary people" },
+      { id: 4,  text: "I enjoy working with males" },
+      { id: 5,  text: "I enjoy working with females" },
+      { id: 6,  text: "Gender doesn't matter to me" },
+      { id: 7,  text: "I drop very easily",                       desc: "Subjects who drop easily enter trance quickly with minimal effort from the hypnotist." },
+      { id: 8,  text: "I move or twitch a lot while under",       desc: "Involuntary physical movements -twitching, swaying, or shifting -that can happen naturally to a subject during trance." },
+      { id: 9,  text: "I come out of trance easily",              desc: "The tendency to wake from trance quickly, sometimes before a hypnotist intends." },
+      { id: 10, text: "I am disoriented after coming back",       desc: "Disorientation is a feeling of grogginess, confusion, or spaciness for a while after emerging from trance." },
+      { id: 11, text: "I need a very safe environment",           desc: "A safe environment means a high level of physical and emotional safety -trust, privacy, comfort -before trance can begin." },
+      { id: 12, text: "I experience amnesia after coming back",   desc: "Post-trance amnesia is not remembering parts or all of what happened during a trance session once out of trance." },
+      { id: 13, text: "I am a very suggestible person",           desc: "Suggestibility is the ability to respond strongly and easily to hypnotic suggestions, often without much resistance." },
+    ],
+  },
+
+  // ── 2. Safety and Consent ──────────────────────────────────────────────────
+  {
+    id: "safety",
+    title: "Safety and Consent",
+    description: "How important do you find these aspects?",
+    questions: [
+      { id: 14, text: "Trust",                                          desc: "How important is it that a subject fully trusts their partner before a session?" },
+      { id: 15, text: "Unknown play partner",                           desc: "Working with someone a subject has never met or knows very little about." },
+      { id: 16, text: "A lot of safety talk / triggers",                desc: "Significant time spent before a session between a subject and hypnotist discussing safety words and exit triggers." },
+      { id: 17, text: "Long pretalk",                                   desc: "An extended conversation before a session covering expectations, boundaries, and desires." },
+      { id: 18, text: "Very clear contract about what's going to happen", desc: "An explicit agreed-upon plan for a session so there are no surprises." },
+      { id: 19, text: "Less rapport / empathy",                         desc: "A detached, clinical hypnotist style with minimal emotional warmth -purely technical in approach." },
+      { id: 20, text: "Post talk / aftercare",                          desc: "Time after a session for a subject to decompress, check in emotionally, and return to a grounded headspace." },
+      { id: 21, text: "Dropping without warning",                       desc: "A subject being put into trance suddenly without being told it's about to happen." },
+      { id: 22, text: "People watching the trance",                     desc: "Others being present and observing a session as it happens." },
+      { id: 23, text: "Triggers used without warning",                  desc: "A hypnotic trigger being fired on a subject unexpectedly mid-conversation." },
+      { id: 24, text: "Triggers used in public",                        desc: "A hypnotist activating a trigger on a subject in a public space." },
+      { id: 25, text: "Knowing what will happen before trance",         desc: "A full briefing on a session's content before it begins." },
+      { id: 26, text: "Making wishes beforehand",                       desc: "The hypnotist is informed of things which a subject would like to experience, which they then incorporate." },
+      { id: 27, text: "Clear consent before going under",               desc: "A subject explicitly confirming consent for each activity right before an induction begins." },
+      { id: 28, text: "Being shown off while hypnotized",               desc: "A subject being demonstrated to others -in a call, a party, or stage setting -by having their triggers used, or while in trance." },
+      { id: 29, text: "Not removing triggers after a session",          desc: "Allowing triggers installed during a session to remain active for future use." },
+      { id: 30, text: "Being told to come back up if necessary",        desc: "A standing instruction that lets a subject come out of trance if the situation feels unsafe." },
+    ],
+  },
+
+  // ── 3. Types Of Hypnosis ───────────────────────────────────────────────────
+  {
+    id: "types",
+    title: "Types Of Hypnosis",
+    description: "How much do you enjoy experiencing each type?",
+    questions: [
+      { id: 31, text: "Erotic hypnosis",            desc: "Hypnosis used to create sexual arousal, pleasure, or erotic experiences for a subject." },
+      { id: 32, text: "Recreational hypnosis",      desc: "Hypnosis done purely for fun and entertainment for a subject, with no therapeutic or erotic intent." },
+      { id: 33, text: "Therapeutic hypnosis",       desc: "Hypnosis used to help a subject work through mental blocks, anxiety, trauma, or self-improvement goals." },
+      { id: 34, text: "Stage hypnosis",             desc: "Performance-style hypnosis done in front of an audience, where a subject performs on stage for entertainment." },
+      { id: 35, text: "BDSM components",            desc: "Incorporating bondage, discipline, dominance, or submission elements alongside hypnosis in a session." },
+      { id: 36, text: "D/S-Hypno stuff",            desc: "Dominance/submission dynamics specifically woven into the hypnosis itself -not just alongside it." },
+      { id: 37, text: "Text hypnosis",              desc: "Hypnosis through written text alone, e.g. a script in a chat or document." },
+      { id: 38, text: "Audio hypnosis",             desc: "Hypnosis through voice recordings or live audio -podcasts, files, calls." },
+      { id: 39, text: "Video hypnosis",             desc: "Hypnosis through a video -using visuals and audio together." },
+      { id: 40, text: "In person hypnosis",         desc: "Hypnosis done face-to-face with a hypnotist and subject in the same physical (or virtual reality) space as one another." },
+      { id: 41, text: "Multiple hypnotists at once", desc: "A subject being worked on by more than one hypnotist simultaneously." },
+      { id: 42, text: "Multiple subjects at once",  desc: "Hypnosis in a group session with multiple subjects." },
+      { id: 43, text: "Covert hypnosis",            desc: "Hypnosis without a subject being explicitly told it's happening -embedded in normal conversation." },
+    ],
+  },
+
+  // ── 4. Preferences ─────────────────────────────────────────────────────────
+  {
+    id: "preferences",
+    title: "Preferences",
+    description: "How much do you enjoy these?",
+    questions: [
+      { id: 44, text: "Watching others go under",            desc: "A subject observing another person fall into trance, as a spectator." },
+      { id: 45, text: "Watching others hypnotize someone",   desc: "A subject observing a hypnotist work on another subject -watching the process rather than being in it." },
+      { id: 46, text: "Resistance",                          desc: "A resisting subject will try to fight or resist an induction, creating a push-and-pull dynamic with the hypnotist." },
+      { id: 47, text: "Brattiness",                          desc: "A subject playfully defying or teasing a hypnotist rather than cooperating -while still ultimately going under." },
+      { id: 48, text: "Long trance sessions",                desc: "Sessions that last an hour or more, allowing a subject to have deep or extended experiences." },
+      { id: 49, text: "Drooling",                            desc: "Loss of mouth control that can happen to a subject during very deep trance states." },
+      { id: 50, text: "Eye rolls",                           desc: "Eyes rolling back involuntarily as a subject sinks into trance -a common physical sign of depth." },
+      { id: 51, text: "Being submissive" },
+      { id: 52, text: "Receiving dominance",                 desc: "A hypnotist taking a commanding, authoritative role over a subject." },
+      { id: 53, text: "Talking while under",                 desc: "The ability for a subject to be able to speak and respond to a hypnotist while remaining in trance." },
+      { id: 54, text: "Being surprised",                     desc: "A hypnotist doing something unexpected during a session that a subject doesn't anticipate." },
+      { id: 55, text: "Hypnotist doing whatever they want",  desc: "A hypnotist being given creative freedom over a session with no pre-agreed script." },
+    ],
+  },
+
+  // ── 5. Stimuli ─────────────────────────────────────────────────────────────
+  {
+    id: "stimuli",
+    title: "Stimuli",
+    description: "How much do you enjoy experiencing these stimuli?",
+    questions: [
+      { id: 56, text: "Auditory stimuli",           desc: "Sound-based focus points -music, tones, voice, rhythmic noise -used to help a subject enter trance." },
+      { id: 57, text: "Kinesthetic stimuli",        desc: "Physical sensations used as a focus for a subject -touch, pressure, temperature, breathing awareness." },
+      { id: 58, text: "Visual stimuli",             desc: "Something for a subject to look at as a focus point -objects, patterns, or light." },
+      { id: 59, text: "Binaurals",                  desc: "Audio tracks that play slightly different tones in each ear, designed to alter a subject's brainwave states." },
+      { id: 60, text: "Snapping fingers" },
+      { id: 61, text: "Spirals",                    desc: "Rotating spiral visuals used as a classic fixation point to aid a subject's induction." },
+      { id: 62, text: "Pendulums",                  desc: "A swinging object a subject watches back and forth to narrow focus and encourage trance." },
+      { id: 63, text: "Shiny items",                desc: "Reflective or glimmering objects used to capture and hold a subject's attention." },
+      { id: 64, text: "Crystals" },
+      { id: 65, text: "Flashing light",             desc: "Rhythmically flashing light used to occupy a subject's visual system and deepen focus." },
+      { id: 66, text: "Pocket watch",               desc: "The classic swinging watch -a traditional pendulum-style fixation object for a subject." },
+      { id: 67, text: "Metronome",                  desc: "A steady, rhythmic beat used as an auditory anchor to pace and deepen a subject's trance." },
+      { id: 68, text: "Hand movements / signs",     desc: "The hypnotist using deliberate hand gestures or signals as part of an induction." },
+    ],
+  },
+
+  // ── 6. Inductions ──────────────────────────────────────────────────────────
+  {
+    id: "inductions",
+    title: "Inductions",
+    description: "How much do you enjoy being inducted…",
+    questions: [
+      { id: 69, text: "With slow speaking" },
+      { id: 70, text: "With faster speech" },
+      { id: 71, text: "With soothing voices" },
+      { id: 72, text: "Confusion",                      desc: "The hypnotist deliberately overloads a subject's mind with contradictory or nonsensical language until it gives up and drops." },
+      { id: 73, text: "Overload",                       desc: "Bombarding a subject's senses with too much information at once so the mind surrenders into trance." },
+      { id: 74, text: "Relaxation",                     desc: "A gradual, calm induction built around a subject releasing tension and becoming more and more comfortable." },
+      { id: 75, text: "Progressive muscle relaxation",  desc: "A subject tensing then releasing muscle groups one by one from head to toe to produce deep physical relaxation." },
+      { id: 76, text: "Conversational",                 desc: "Trance being induced through normal-seeming conversation with embedded suggestions." },
+      { id: 77, text: "Mirroring",                      desc: "The hypnotist subtly matching a subject's posture, breathing, or rhythm to build deep rapport and then leading them into trance." },
+      { id: 78, text: "Visual things",                  desc: "Using something to look at as the primary tool for induction." },
+      { id: 79, text: "Auditory things",                desc: "Using sounds or voice as the primary tool for induction." },
+      { id: 80, text: "Fractionation",                  desc: "A subject repeatedly being brought in and out of trance in quick succession -each time going deeper." },
+      { id: 81, text: "Recall of last trance",          desc: "The hypnotist prompting a subject to remember the feeling of their last trance as a shortcut to re-entering it." },
+      { id: 82, text: "Countdown",                      desc: "Counting down from a number while each count takes a subject deeper into trance." },
+      { id: 83, text: "Focusing on something",          desc: "A subject directing all attention onto one specific object, sensation, or thought until trance occurs naturally." },
+      { id: 84, text: "Eye fixation",                   desc: "A subject staring at a fixed point -often a finger, object, or spot -until the eyes tire and trance sets in." },
+      { id: 85, text: "Instant inductions",             desc: "Rapid inductions that induce trance in seconds -often involving a sudden physical or verbal trigger." },
+    ],
+  },
+
+  // ── 7. Emotion Play ────────────────────────────────────────────────────────
+  {
+    id: "emotion",
+    title: "Emotion Play",
+    description: "I enjoy being made to feel…",
+    questions: [
+      { id: 86,  text: "Beautiful and sensuous" },
+      { id: 87,  text: "Emotionless and empty",    desc: "A blank, affect-free state for a subject -no feelings, just quiet emptiness." },
+      { id: 88,  text: "Empowered and focused" },
+      { id: 89,  text: "Energized" },
+      { id: 90,  text: "Helpless",                 desc: "Being unable to act, move, or resist -complete loss of agency." },
+      { id: 91,  text: "Naughty" },
+      { id: 92,  text: "Captive",                  desc: "A subject feeling trapped or held -physically or mentally unable to leave." },
+      { id: 93,  text: "Objectified",              desc: "A subject being treated as an object rather than a person -depersonalized and used." },
+      { id: 94,  text: "Impersonal",               desc: "A subject being treated without warmth or individual recognition -purely functional." },
+      { id: 95,  text: "Detached",                 desc: "Feeling disconnected from one's own body, emotions, or surroundings." },
+      { id: 96,  text: "Aroused" },
+      { id: 97,  text: "Pleasure" },
+      { id: 98,  text: "Exploring fantasies",      desc: "Using trance as a space to safely experience things that can normally only be imagined." },
+      { id: 99,  text: "Safe and protected" },
+      { id: 100, text: "Vulnerable",               desc: "Open, exposed, and without defenses -trusting another person completely." },
+      { id: 101, text: "Fear",                     desc: "Consensual fear or dread experienced by a subject as part of the scene -a controlled scare element." },
+      { id: 102, text: "Degraded",                 desc: "A subject being spoken to or treated in a demeaning way as part of a consensual dynamic." },
+      { id: 103, text: "Humiliated",               desc: "A subject being made to feel embarrassed or lowered -consensually, as part of the scene." },
+    ],
+  },
+
+  // ── 8. Coming Out Of Trance ────────────────────────────────────────────────
+  {
+    id: "wakeup",
+    title: "Coming Out Of Trance",
+    description: "How do you prefer to be brought out of trance?",
+    questions: [
+      { id: 104, text: "Slow counts back up",                    desc: "A gradual count from a low number upward, each step bringing a subject more awake." },
+      { id: 105, text: "Wake up trigger",                        desc: "A specific word or action that instantly snaps a subject out of trance." },
+      { id: 106, text: "Only counting to three or five",         desc: "A short, quick count that brings a subject out fast without a long drawn-out process." },
+      { id: 107, text: "Being told to come back or wake up",     desc: "A simple verbal instruction with no count or ritual -just a direct command to return." },
+    ],
+  },
+
+  // ── 9. Suggestions 1 ──────────────────────────────────────────────────────
+  {
+    id: "suggestions1",
+    title: "Suggestions 1",
+    description: "How much do you enjoy receiving these suggestions?",
+    questions: [
+      { id: 108, text: "Post hypnotic suggestions",  desc: "Instructions given during trance that trigger a behavior or feeling in a subject after a session ends." },
+      { id: 109, text: "Catalepsy",                  desc: "A suggestion that makes a subject's body part -often an arm -become stiff and immovable." },
+      { id: 110, text: "Immobilization",             desc: "A subject being unable to move any body parts, as though frozen in place." },
+      { id: 111, text: "Levitation",                 desc: "The feeling or suggestion that a subject's limb -usually an arm -is floating upward on its own." },
+      { id: 112, text: "Freeze / 'Stop' triggers",   desc: "A word or signal that instantly restricts all of a subject's ability to move, locking them in place." },
+      { id: 113, text: "Blank and empty",            desc: "A suggestion for a subject to stop thinking -a quiet, void-like mental state with no thoughts." },
+      { id: 114, text: "Amnesia",                    desc: "A suggestion for a subject to forget parts or all of what happened during a session." },
+      { id: 115, text: "Mantras",                    desc: "Repeated phrases or affirmations installed in a subject during trance to reinforce a belief or behavior." },
+      { id: 116, text: "Behavior modification",      desc: "Using hypnosis to change a subject's habit, reaction, or pattern of behavior outside of sessions." },
+      { id: 117, text: "Personality play",           desc: "Taking on a different persona or character during trance -a shift in mannerisms, self-image, and presentation." },
+      { id: 118, text: "Positive hallucination",     desc: "A subject perceiving something that isn't there -seeing, hearing, or feeling a suggested sensation." },
+      { id: 119, text: "Negative hallucination",     desc: "A subject being unable to perceive something that is there -e.g. not seeing a person in the room." },
+      { id: 120, text: "Mind melting",               desc: "A sensation of a subject's mind softening, dissolving, or losing its usual sharp edges." },
+      { id: 121, text: "Brainwashing",               desc: "Consensual deep repetition of ideas or commands to reshape a subject's thinking -an intense form of suggestion play." },
+      { id: 122, text: "Mind controlling",           desc: "The hypnotist taking direct control over a subject's thoughts, actions, or decisions during trance." },
+      { id: 123, text: "Transformation",             desc: "A suggestion that a subject becomes something else -such as an animal, an object, or a different person." },
+      { id: 124, text: "Pet play",                   desc: "A subject taking on the mindset and behaviors of an animal -often a cat, dog, or puppy." },
+      { id: 125, text: "Complete control",           desc: "The hypnotist being given total authority over everything during a session." },
+      { id: 126, text: "Big and little play",        desc: "Age regression or caregiver dynamics -one person takes a nurturing role, the other a childlike role." },
+      { id: 127, text: "Surrendering",               desc: "A subject fully gives up resistance and hands all control to the hypnotist." },
+      { id: 128, text: "Submission" },
+      { id: 129, text: "Drugging",                   desc: "A feeling of having been administered a sedative or mind-altering substance." },
+      { id: 130, text: "Being playful" },
+      { id: 131, text: "Being naughty" },
+      { id: 132, text: "Captivity / helplessness",   desc: "A subject feeling trapped or restrained -mentally or physically unable to escape or resist." },
+      { id: 133, text: "Power play",                 desc: "A dynamic where the hypnotist holds clear authority over a subject during the session." },
+      { id: 134, text: "Passiveness",                desc: "A subject being entirely receptive with no active role -just experiencing whatever is done to them." },
+      { id: 135, text: "Orgasm trigger",             desc: "A word or signal installed during trance that causes a subject to experience an orgasm when activated." },
+      { id: 136, text: "Seduction",                  desc: "A hypnotist using charm, flirtation, and allure as part of an induction or session." },
+      { id: 137, text: "Touch-free pleasure",        desc: "A subject experiencing physical pleasure sensations through suggestion alone, with no physical touch." },
+      { id: 138, text: "Touch-free orgasm",          desc: "A subject reaching orgasm through hypnotic suggestion only, without any physical stimulation." },
+    ],
+  },
+
+  // ── 10. Suggestions 2 ─────────────────────────────────────────────────────
+  {
+    id: "suggestions2",
+    title: "Suggestions 2",
+    description: "How much do you enjoy receiving these suggestions?",
+    questions: [
+      { id: 139, text: "Feminization",               desc: "Suggestions that make a subject feel, think, move, or present in a more feminine way." },
+      { id: 140, text: "Masculinization",            desc: "Suggestions that make a subject feel, think, move, or present in a more masculine way." },
+      { id: 141, text: "Furry",                      desc: "A subject taking on the identity or mindset of an anthropomorphic animal character." },
+      { id: 142, text: "Dollification",              desc: "A subject being suggested into the mindset of a doll -passive, posed, and without personal will." },
+      { id: 143, text: "Robotization",               desc: "A subject being suggested into the mindset of a robot -mechanical, obedient, and emotionless." },
+      { id: 144, text: "Memory play",                desc: "Altering, implanting, or removing a subject's memories as part of the session." },
+      { id: 145, text: "Objectification",            desc: "A subject being treated as a non-person object to be used, displayed, or interacted with as a thing." },
+      { id: 146, text: "Bimbofication",              desc: "Suggestions that reduce a subject's intellectual focus and increase a ditzy, sexual, or highly agreeable persona." },
+      { id: 147, text: "IQ play",                    desc: "Suggestions that alter a subject's perceived intelligence -making them feel sharper or more spacey." },
+      { id: 148, text: "Rape play",                  desc: "Fully consensual non-consent fantasy -simulated forced scenarios a subject has agreed upon in advance." },
+      { id: 149, text: "BDSM",                       desc: "Bondage, discipline, dominance, submission, sadism, and masochism incorporated into a subject's session." },
+      { id: 150, text: "DS-play",                    desc: "Dominance and submission dynamics as the central focus -the hypnotist leads, the subject follows." },
+      { id: 151, text: "Consensual non-consent",     desc: "Pre-agreed scenarios where a subject's resistance and refusal are part of the play, but everything is consented to in advance." },
+      { id: 152, text: "Sissy training",             desc: "Suggestions and guidance aimed at feminizing a subject's behavior, presentation, and mindset." },
+      { id: 154, text: "Blackmail",                  desc: "Consensual fantasy where the hypnotist pretends to have leverage over a subject to compel compliance." },
+      { id: 156, text: "Obedience",                  desc: "A subject being deeply compelled to follow every instruction given by the hypnotist." },
+      { id: 157, text: "Pain triggers",              desc: "Suggestions that cause a subject to feel the sensation of pain in response to a specific word or signal." },
+      { id: 158, text: "Tease and release",          desc: "A subject being brought to a peak of arousal and then allowed release -repeated cycles of build-up and payoff." },
+      { id: 159, text: "Tease and denial",           desc: "A subject being brought to a peak of arousal repeatedly but not allowed release -frustration is the point." },
+      { id: 160, text: "Edging",                     desc: "A subject being kept right at the edge of orgasm for an extended period without going over." },
+      { id: 161, text: "Covert D/S",                 desc: "A dominance/submission dynamic that operates subtly or invisibly -not announced or obvious to others." },
+      { id: 162, text: "Resistance play",            desc: "A subject actively trying to resist suggestions or control while the hypnotist works to overcome it." },
+      { id: 163, text: "Indirect sexual description", desc: "Sexual content described to a subject using vague, metaphorical, or non-explicit language." },
+      { id: 164, text: "Direct sexual description",  desc: "Sexual content described to a subject in explicit, literal terms with no euphemisms." },
+      { id: 165, text: "Being guided",               desc: "The hypnotist leading a subject step by step through an experience with clear ongoing direction." },
+      { id: 166, text: "Getting attention",          desc: "A subject being the sole focus of the hypnotist's attention -feeling seen and centered." },
+      { id: 167, text: "Being ordered to undress" },
+      { id: 168, text: "Being ordered to masturbate" },
+      { id: 169, text: "Being forced to do something", desc: "A consensual scenario where a subject is compelled to act against their will by the hypnotist's suggestion." },
+    ],
+  },
+
+];
