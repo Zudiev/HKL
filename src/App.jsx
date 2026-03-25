@@ -65,6 +65,20 @@ export default function PreferenceQuiz() {
 
     const bottomRef = useRef(null);
 
+    // ── DYSLEXIA MODE ───────────────────────────────────────────────────────
+    const [dyslexia, setDyslexia] = useState(() => localStorage.getItem("dyslexiaMode") === "true");
+    useEffect(() => {
+        document.documentElement.classList.toggle("dyslexia-mode", dyslexia);
+        localStorage.setItem("dyslexiaMode", dyslexia);
+    }, [dyslexia]);
+
+    // ── HIGH CONTRAST MODE ──────────────────────────────────────────────────
+    const [highContrast, setHighContrast] = useState(() => localStorage.getItem("highContrastMode") === "true");
+    useEffect(() => {
+        document.documentElement.classList.toggle("high-contrast", highContrast);
+        localStorage.setItem("highContrastMode", highContrast);
+    }, [highContrast]);
+
     // ── EASTER EGG HOOK ─────────────────────────────────────────────────────
     const { eggMedia, eggFading, handleVideoEnd, wrap67 } = useEasterEgg();
 
@@ -477,6 +491,23 @@ export default function PreferenceQuiz() {
                             <span className="role-icon">⇄</span>
                             <span className="role-name">Hypnoswitch</span>
                             <span className="role-desc">I enjoy both roles</span>
+                        </button>
+                    </div>
+
+                    <div className="a11y-toggles">
+                        <button
+                            className={`a11y-btn${dyslexia ? " active" : ""}`}
+                            onClick={() => setDyslexia(d => !d)}
+                        >
+                            <span className="a11y-btn-icon">Aa</span>
+                            {dyslexia ? "Dyslexia-friendly on" : "Dyslexia-friendly"}
+                        </button>
+                        <button
+                            className={`a11y-btn${highContrast ? " active" : ""}`}
+                            onClick={() => setHighContrast(h => !h)}
+                        >
+                            <span className="a11y-btn-icon">◐</span>
+                            {highContrast ? "High contrast on" : "High contrast"}
                         </button>
                     </div>
 
